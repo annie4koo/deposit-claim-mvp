@@ -99,8 +99,8 @@ export default function DepositClaimPage() {
   const [activeTab, setActiveTab] = useState("form")
   const [apiError, setApiError] = useState<string>("")
 
-  // Date Selector Component - 使用下拉选择避免输入问题
-  const DateSelector = ({ 
+  // Calendar Date Picker Component - 点击弹出日历选择
+  const CalendarDatePicker = ({ 
     id, 
     value, 
     onChange, 
@@ -111,126 +111,199 @@ export default function DepositClaimPage() {
     onChange: (value: string) => void
     hasError?: boolean
   }) => {
-    // 解析现有值
-    const parseDate = (dateStr: string) => {
-      if (!dateStr) return { month: '', day: '', year: '' }
-      
-      // 如果是MM/DD/YYYY格式
-      if (dateStr.includes('/')) {
-        const parts = dateStr.split('/')
-        return {
-          month: parts[0] || '',
-          day: parts[1] || '',
-          year: parts[2] || ''
+    const [isOpen, setIsOpen] = useState(false)
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>()
+    const inputRef = useRef<HTMLInputElement>(null)
+    const calendarRef = useRef<HTMLDivElement>(null)
+
+    // 将字符串日期转换为Date对象
+    useEffect(() => {
+      if (value && value.includes('/')) {
+        const [month, day, year] = value.split('/')
+        if (month && day && year) {
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+          if (!isNaN(date.getTime())) {
+            setSelectedDate(date)
+          }
         }
       }
-      
-      return { month: '', day: '', year: '' }
-    }
+    }, [value])
 
-    const { month, day, year } = parseDate(value)
-
-    // 获取指定月份和年份的天数
-    const getDaysInMonth = (month: number, year: number) => {
-      if (!month || !year) return 31
-      return new Date(year, month, 0).getDate()
-    }
-
-    const monthNum = parseInt(month) || 0
-    const yearNum = parseInt(year) || new Date().getFullYear()
-    const maxDays = getDaysInMonth(monthNum, yearNum)
-
-    // 月份选项
-    const months = [
-      { value: '1', label: 'January' },
-      { value: '2', label: 'February' },
-      { value: '3', label: 'March' },
-      { value: '4', label: 'April' },
-      { value: '5', label: 'May' },
-      { value: '6', label: 'June' },
-      { value: '7', label: 'July' },
-      { value: '8', label: 'August' },
-      { value: '9', label: 'September' },
-      { value: '10', label: 'October' },
-      { value: '11', label: 'November' },
-      { value: '12', label: 'December' }
-    ]
-
-    // 年份选项（2020-2030）
-    const years = Array.from({ length: 11 }, (_, i) => {
-      const year = 2020 + i
-      return { value: year.toString(), label: year.toString() }
-    })
-
-    // 日期选项
-    const days = Array.from({ length: maxDays }, (_, i) => {
-      const day = i + 1
-      return { value: day.toString(), label: day.toString() }
-    })
-
-    const handleChange = (field: 'month' | 'day' | 'year', newValue: string) => {
-      const current = parseDate(value)
-      const updated = { ...current, [field]: newValue }
-      
-      // 如果所有字段都有值，组合成完整日期
-      if (updated.month && updated.day && updated.year) {
-        const formattedDate = `${updated.month.padStart(2, '0')}/${updated.day.padStart(2, '0')}/${updated.year}`
-        onChange(formattedDate)
-      } else {
-        // 否则保存部分值
-        const partialDate = `${updated.month}${updated.day ? '/' + updated.day : ''}${updated.year ? '/' + updated.year : ''}`
-        onChange(partialDate)
+    // 点击外部关闭日历
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+          setIsOpen(false)
+        }
       }
+
+      if (isOpen) {
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }, [isOpen])
+
+    const handleDateSelect = (date: Date | undefined) => {
+      if (date) {
+        setSelectedDate(date)
+        const month = (date.getMonth() + 1).toString().padStart(2, '0')
+        const day = date.getDate().toString().padStart(2, '0')
+        const year = date.getFullYear().toString()
+        onChange(`${month}/${day}/${year}`)
+        setIsOpen(false)
+      }
+    }
+
+    const formatDisplayDate = (dateStr: string) => {
+      if (!dateStr || !dateStr.includes('/')) return ''
+      const [month, day, year] = dateStr.split('/')
+      if (month && day && year) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        return `${monthNames[parseInt(month) - 1]} ${day}, ${year}`
+      }
+      return dateStr
     }
 
     return (
-      <div className="space-y-1">
-        <div className="grid grid-cols-3 gap-2">
-          <div>
-            <Select value={month} onValueChange={(value) => handleChange('month', value)}>
-              <SelectTrigger className={`${hasError ? 'border-red-500' : 'border-gray-300'} text-sm`}>
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          value={formatDisplayDate(value)}
+          onClick={() => setIsOpen(!isOpen)}
+          onFocus={() => setIsOpen(true)}
+          readOnly
+          placeholder="Select a date"
+          className={`
+            flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm 
+            ring-offset-background placeholder:text-muted-foreground 
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 
+            focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50
+            cursor-pointer
+            ${hasError ? 'border-red-500' : 'border-gray-300'}
+          `}
+        />
+        
+        {isOpen && (
+          <div 
+            ref={calendarRef}
+            className="absolute top-full left-0 z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4"
+            style={{ minWidth: '320px' }}
+          >
+            {/* 简单的日历实现 */}
+            <div className="space-y-4">
+              {/* 月份年份选择 */}
+              <div className="flex items-center justify-between">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const currentDate = selectedDate || new Date()
+                    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
+                    setSelectedDate(newDate)
+                  }}
+                  className="p-2 rounded hover:bg-gray-100 text-lg font-semibold"
+                >
+                  ←
+                </button>
+                
+                <div className="font-semibold text-gray-800 text-lg">
+                  {selectedDate ? 
+                    selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) :
+                    new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                  }
+                </div>
+                
+                <button 
+                  type="button"
+                  onClick={() => {
+                    const currentDate = selectedDate || new Date()
+                    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1)
+                    setSelectedDate(newDate)
+                  }}
+                  className="p-2 rounded hover:bg-gray-100 text-lg font-semibold"
+                >
+                  →
+                </button>
+              </div>
+
+              {/* 星期标题 */}
+              <div className="grid grid-cols-7 gap-1 text-center text-sm font-medium text-gray-500">
+                <div>Su</div>
+                <div>Mo</div>
+                <div>Tu</div>
+                <div>We</div>
+                <div>Th</div>
+                <div>Fr</div>
+                <div>Sa</div>
+              </div>
+
+              {/* 日期网格 */}
+              <div className="grid grid-cols-7 gap-1">
+                {(() => {
+                  const currentMonth = selectedDate ? selectedDate.getMonth() : new Date().getMonth()
+                  const currentYear = selectedDate ? selectedDate.getFullYear() : new Date().getFullYear()
+                  const firstDay = new Date(currentYear, currentMonth, 1)
+                  const lastDay = new Date(currentYear, currentMonth + 1, 0)
+                  const startDate = new Date(firstDay)
+                  startDate.setDate(startDate.getDate() - firstDay.getDay())
+                  
+                  const days = []
+                  for (let i = 0; i < 42; i++) {
+                    const date = new Date(startDate)
+                    date.setDate(date.getDate() + i)
+                    const isCurrentMonth = date.getMonth() === currentMonth
+                    const isSelected = selectedDate && 
+                      date.getDate() === selectedDate.getDate() &&
+                      date.getMonth() === selectedDate.getMonth() &&
+                      date.getFullYear() === selectedDate.getFullYear()
+                    const isToday = date.toDateString() === new Date().toDateString()
+                    
+                    days.push(
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleDateSelect(date)}
+                        className={`
+                          h-9 w-9 rounded text-sm transition-colors font-medium
+                          ${!isCurrentMonth ? 'text-gray-300' : 'text-gray-900'}
+                          ${isSelected ? 'bg-teal-600 text-white' : ''}
+                          ${isToday && !isSelected ? 'bg-teal-100 text-teal-800 ring-2 ring-teal-300' : ''}
+                          ${isCurrentMonth && !isSelected && !isToday ? 'hover:bg-gray-100' : ''}
+                        `}
+                      >
+                        {date.getDate()}
+                      </button>
+                    )
+                  }
+                  return days
+                })()}
+              </div>
+
+              {/* 底部按钮 */}
+              <div className="flex justify-between pt-3 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date()
+                    handleDateSelect(today)
+                  }}
+                  className="px-4 py-2 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded font-medium"
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
-          
-          <div>
-            <Select value={day} onValueChange={(value) => handleChange('day', value)}>
-              <SelectTrigger className={`${hasError ? 'border-red-500' : 'border-gray-300'} text-sm`}>
-                <SelectValue placeholder="Day" />
-              </SelectTrigger>
-              <SelectContent>
-                {days.map((d) => (
-                  <SelectItem key={d.value} value={d.value}>
-                    {d.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div>
-            <Select value={year} onValueChange={(value) => handleChange('year', value)}>
-              <SelectTrigger className={`${hasError ? 'border-red-500' : 'border-gray-300'} text-sm`}>
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y.value} value={y.value}>
-                    {y.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        )}
       </div>
     )
   }
@@ -546,7 +619,7 @@ export default function DepositClaimPage() {
                     <Label htmlFor="depositDate" className="text-gray-700">
                       Deposit Payment Date *
                     </Label>
-                    <DateSelector
+                    <CalendarDatePicker
                       id="depositDate"
                       value={formData.depositDate}
                       onChange={(value) => handleInputChange("depositDate", value)}
@@ -559,7 +632,7 @@ export default function DepositClaimPage() {
                     <Label htmlFor="moveOutDate" className="text-gray-700">
                       Move-Out Date *
                     </Label>
-                    <DateSelector
+                    <CalendarDatePicker
                       id="moveOutDate"
                       value={formData.moveOutDate}
                       onChange={(value) => handleInputChange("moveOutDate", value)}
