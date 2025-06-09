@@ -99,7 +99,7 @@ export default function DepositClaimPage() {
   const [activeTab, setActiveTab] = useState("form")
   const [apiError, setApiError] = useState<string>("")
 
-  // Custom Date Input Component - 极简版本避免光标丢失
+  // Custom Date Input Component - 使用原生DOM操作避免光标丢失
   const CustomDateInput = ({ 
     id, 
     value, 
@@ -116,48 +116,57 @@ export default function DepositClaimPage() {
     hasError?: boolean
   }) => {
     const inputRef = useRef<HTMLInputElement>(null)
-    
-    // 简单的格式化函数 - 只在必要时添加斜杠
-    const formatValue = (rawValue: string): string => {
-      // 移除所有非数字字符
-      let cleaned = rawValue.replace(/\D/g, '')
-      
-      // 限制最大长度
-      if (cleaned.length > 8) {
-        cleaned = cleaned.substring(0, 8)
+
+    // 初始化输入框值
+    useEffect(() => {
+      if (inputRef.current && inputRef.current.value !== value) {
+        inputRef.current.value = value
       }
+    }, [value])
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      // 允许的键：数字、退格、删除、箭头键、Tab
+      const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab']
+      const isNumber = e.key >= '0' && e.key <= '9'
       
-      // 添加斜杠
-      if (cleaned.length >= 2) {
-        cleaned = cleaned.substring(0, 2) + '/' + cleaned.substring(2)
+      if (!isNumber && !allowedKeys.includes(e.key)) {
+        e.preventDefault()
       }
-      if (cleaned.length >= 5) {
-        cleaned = cleaned.substring(0, 5) + '/' + cleaned.substring(5)
-      }
-      
-      return cleaned
     }
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const cursorPosition = e.target.selectionStart || 0
-      const newValue = formatValue(e.target.value)
+    const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      const input = e.currentTarget
+      let value = input.value
+      const cursorPos = input.selectionStart || 0
       
-      // 立即更新值，不延迟
-      onChange(newValue)
+      // 移除所有非数字字符
+      const numbers = value.replace(/\D/g, '')
       
-      // 恢复光标位置
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          let newCursorPos = cursorPosition
-          
-          // 如果添加了斜杠，调整光标位置
-          if (newValue.length > e.target.value.length) {
-            newCursorPos = cursorPosition + 1
-          }
-          
-          inputRef.current.setSelectionRange(newCursorPos, newCursorPos)
+      // 格式化
+      let formatted = numbers
+      if (numbers.length > 2) {
+        formatted = numbers.slice(0, 2) + '/' + numbers.slice(2)
+      }
+      if (numbers.length > 4) {
+        formatted = numbers.slice(0, 2) + '/' + numbers.slice(2, 4) + '/' + numbers.slice(4, 8)
+      }
+      
+      // 直接更新DOM，不通过React
+      if (input.value !== formatted) {
+        const oldLength = input.value.length
+        input.value = formatted
+        
+        // 调整光标位置
+        let newCursorPos = cursorPos
+        if (formatted.length > oldLength) {
+          newCursorPos = cursorPos + (formatted.length - oldLength)
         }
-      })
+        newCursorPos = Math.min(newCursorPos, formatted.length)
+        input.setSelectionRange(newCursorPos, newCursorPos)
+        
+        // 通知父组件
+        onChange(formatted)
+      }
     }
 
     return (
@@ -166,8 +175,9 @@ export default function DepositClaimPage() {
           ref={inputRef}
           id={id}
           type="text"
-          value={value}
-          onChange={handleInputChange}
+          defaultValue={value}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
           placeholder="MM/DD/YYYY"
           className={`${className} ${hasError ? 'border-red-500' : 'border-gray-300'}`}
           title={title}
