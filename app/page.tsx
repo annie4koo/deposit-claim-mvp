@@ -99,7 +99,7 @@ export default function DepositClaimPage() {
   const [activeTab, setActiveTab] = useState("form")
   const [apiError, setApiError] = useState<string>("")
 
-  // Custom Date Input Component
+  // Custom Date Input Component - 极简版本避免光标丢失
   const CustomDateInput = ({ 
     id, 
     value, 
@@ -115,111 +115,65 @@ export default function DepositClaimPage() {
     title?: string
     hasError?: boolean
   }) => {
-    const [displayValue, setDisplayValue] = useState('')
-    const [error, setError] = useState('')
-    const [isFocused, setIsFocused] = useState(false)
-
-    // 将ISO格式转换为显示格式
-    const formatDateForDisplay = useCallback((isoDate: string) => {
-      if (!isoDate || !isoDate.includes('-')) return isoDate
-      const [year, month, day] = isoDate.split('-')
-      return `${parseInt(month)}/${parseInt(day)}/${year}`
-    }, [])
-
-    // 同步外部value到显示值
-    useEffect(() => {
-      const formatted = formatDateForDisplay(value)
-      setDisplayValue(formatted)
-    }, [value, formatDateForDisplay])
-
-    // 验证日期
-    const validateDate = useCallback((dateStr: string) => {
-      if (!dateStr || dateStr.length < 8) return ''
+    const inputRef = useRef<HTMLInputElement>(null)
+    
+    // 简单的格式化函数 - 只在必要时添加斜杠
+    const formatValue = (rawValue: string): string => {
+      // 移除所有非数字字符
+      let cleaned = rawValue.replace(/\D/g, '')
       
-      const parts = dateStr.split('/')
-      if (parts.length !== 3) return 'Please use MM/DD/YYYY format'
-      
-      const month = parseInt(parts[0])
-      const day = parseInt(parts[1])
-      const year = parseInt(parts[2])
-      
-      if (isNaN(month) || isNaN(day) || isNaN(year)) return 'Please enter valid numbers'
-      if (month < 1 || month > 12) return 'Month must be between 1 and 12'
-      if (year < 2020 || year > 2030) return 'Year must be between 2020 and 2030'
-      
-      const date = new Date(year, month - 1, day)
-      if (date.getFullYear() !== year || date.getMonth() !== (month - 1) || date.getDate() !== day) {
-        return 'Please enter a valid date'
+      // 限制最大长度
+      if (cleaned.length > 8) {
+        cleaned = cleaned.substring(0, 8)
       }
       
-      return ''
-    }, [])
-
-    // 处理输入变化
-    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-      let inputValue = e.target.value
-      
-      // 只允许数字和斜杠
-      inputValue = inputValue.replace(/[^\d\/]/g, '')
-      
-      // 限制长度
-      if (inputValue.length > 10) return
-      
-      // 自动添加斜杠
-      if (inputValue.length === 2 && displayValue.length === 1) {
-        inputValue = inputValue + '/'
-      } else if (inputValue.length === 5 && displayValue.length === 4 && inputValue.split('/').length === 2) {
-        inputValue = inputValue + '/'
+      // 添加斜杠
+      if (cleaned.length >= 2) {
+        cleaned = cleaned.substring(0, 2) + '/' + cleaned.substring(2)
+      }
+      if (cleaned.length >= 5) {
+        cleaned = cleaned.substring(0, 5) + '/' + cleaned.substring(5)
       }
       
-      setDisplayValue(inputValue)
-      
-      // 验证
-      const validationError = validateDate(inputValue)
-      setError(validationError)
-      
-      // 通知父组件
-      if (inputValue.length === 10 && !validationError) {
-        const parts = inputValue.split('/')
-        const isoDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`
-        onChange(isoDate)
-      } else {
-        onChange(inputValue)
-      }
-    }, [displayValue, validateDate, onChange])
+      return cleaned
+    }
 
-    const handleFocus = useCallback(() => setIsFocused(true), [])
-    const handleBlur = useCallback(() => setIsFocused(false), [])
-
-    const showPlaceholder = useMemo(() => 
-      !isFocused && !displayValue, 
-      [isFocused, displayValue]
-    )
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const cursorPosition = e.target.selectionStart || 0
+      const newValue = formatValue(e.target.value)
+      
+      // 立即更新值，不延迟
+      onChange(newValue)
+      
+      // 恢复光标位置
+      requestAnimationFrame(() => {
+        if (inputRef.current) {
+          let newCursorPos = cursorPosition
+          
+          // 如果添加了斜杠，调整光标位置
+          if (newValue.length > e.target.value.length) {
+            newCursorPos = cursorPosition + 1
+          }
+          
+          inputRef.current.setSelectionRange(newCursorPos, newCursorPos)
+        }
+      })
+    }
 
     return (
       <div className="space-y-1">
-        <div className="relative">
-          <input
-            id={id}
-            type="text"
-            value={displayValue}
-            onChange={handleChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            className={`${className} ${hasError || error ? 'border-red-500' : 'border-gray-300'}`}
-            title={title}
-            maxLength={10}
-            autoComplete="off"
-          />
-          {showPlaceholder && (
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none text-sm">
-              MM/DD/YYYY
-            </div>
-          )}
-        </div>
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          value={value}
+          onChange={handleInputChange}
+          placeholder="MM/DD/YYYY"
+          className={`${className} ${hasError ? 'border-red-500' : 'border-gray-300'}`}
+          title={title}
+          maxLength={10}
+          autoComplete="off"
+        />
       </div>
     )
   }
