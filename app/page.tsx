@@ -99,91 +99,138 @@ export default function DepositClaimPage() {
   const [activeTab, setActiveTab] = useState("form")
   const [apiError, setApiError] = useState<string>("")
 
-  // Custom Date Input Component - 使用原生DOM操作避免光标丢失
-  const CustomDateInput = ({ 
+  // Date Selector Component - 使用下拉选择避免输入问题
+  const DateSelector = ({ 
     id, 
     value, 
     onChange, 
-    className, 
-    title, 
     hasError 
   }: {
     id: string
     value: string
     onChange: (value: string) => void
-    className?: string
-    title?: string
     hasError?: boolean
   }) => {
-    const inputRef = useRef<HTMLInputElement>(null)
-
-    // 初始化输入框值
-    useEffect(() => {
-      if (inputRef.current && inputRef.current.value !== value) {
-        inputRef.current.value = value
-      }
-    }, [value])
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      // 允许的键：数字、退格、删除、箭头键、Tab
-      const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab']
-      const isNumber = e.key >= '0' && e.key <= '9'
+    // 解析现有值
+    const parseDate = (dateStr: string) => {
+      if (!dateStr) return { month: '', day: '', year: '' }
       
-      if (!isNumber && !allowedKeys.includes(e.key)) {
-        e.preventDefault()
+      // 如果是MM/DD/YYYY格式
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/')
+        return {
+          month: parts[0] || '',
+          day: parts[1] || '',
+          year: parts[2] || ''
+        }
       }
+      
+      return { month: '', day: '', year: '' }
     }
 
-    const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      const input = e.currentTarget
-      let value = input.value
-      const cursorPos = input.selectionStart || 0
+    const { month, day, year } = parseDate(value)
+
+    // 获取指定月份和年份的天数
+    const getDaysInMonth = (month: number, year: number) => {
+      if (!month || !year) return 31
+      return new Date(year, month, 0).getDate()
+    }
+
+    const monthNum = parseInt(month) || 0
+    const yearNum = parseInt(year) || new Date().getFullYear()
+    const maxDays = getDaysInMonth(monthNum, yearNum)
+
+    // 月份选项
+    const months = [
+      { value: '1', label: 'January' },
+      { value: '2', label: 'February' },
+      { value: '3', label: 'March' },
+      { value: '4', label: 'April' },
+      { value: '5', label: 'May' },
+      { value: '6', label: 'June' },
+      { value: '7', label: 'July' },
+      { value: '8', label: 'August' },
+      { value: '9', label: 'September' },
+      { value: '10', label: 'October' },
+      { value: '11', label: 'November' },
+      { value: '12', label: 'December' }
+    ]
+
+    // 年份选项（2020-2030）
+    const years = Array.from({ length: 11 }, (_, i) => {
+      const year = 2020 + i
+      return { value: year.toString(), label: year.toString() }
+    })
+
+    // 日期选项
+    const days = Array.from({ length: maxDays }, (_, i) => {
+      const day = i + 1
+      return { value: day.toString(), label: day.toString() }
+    })
+
+    const handleChange = (field: 'month' | 'day' | 'year', newValue: string) => {
+      const current = parseDate(value)
+      const updated = { ...current, [field]: newValue }
       
-      // 移除所有非数字字符
-      const numbers = value.replace(/\D/g, '')
-      
-      // 格式化
-      let formatted = numbers
-      if (numbers.length > 2) {
-        formatted = numbers.slice(0, 2) + '/' + numbers.slice(2)
-      }
-      if (numbers.length > 4) {
-        formatted = numbers.slice(0, 2) + '/' + numbers.slice(2, 4) + '/' + numbers.slice(4, 8)
-      }
-      
-      // 直接更新DOM，不通过React
-      if (input.value !== formatted) {
-        const oldLength = input.value.length
-        input.value = formatted
-        
-        // 调整光标位置
-        let newCursorPos = cursorPos
-        if (formatted.length > oldLength) {
-          newCursorPos = cursorPos + (formatted.length - oldLength)
-        }
-        newCursorPos = Math.min(newCursorPos, formatted.length)
-        input.setSelectionRange(newCursorPos, newCursorPos)
-        
-        // 通知父组件
-        onChange(formatted)
+      // 如果所有字段都有值，组合成完整日期
+      if (updated.month && updated.day && updated.year) {
+        const formattedDate = `${updated.month.padStart(2, '0')}/${updated.day.padStart(2, '0')}/${updated.year}`
+        onChange(formattedDate)
+      } else {
+        // 否则保存部分值
+        const partialDate = `${updated.month}${updated.day ? '/' + updated.day : ''}${updated.year ? '/' + updated.year : ''}`
+        onChange(partialDate)
       }
     }
 
     return (
       <div className="space-y-1">
-        <input
-          ref={inputRef}
-          id={id}
-          type="text"
-          defaultValue={value}
-          onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          placeholder="MM/DD/YYYY"
-          className={`${className} ${hasError ? 'border-red-500' : 'border-gray-300'}`}
-          title={title}
-          maxLength={10}
-          autoComplete="off"
-        />
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <Select value={month} onValueChange={(value) => handleChange('month', value)}>
+              <SelectTrigger className={`${hasError ? 'border-red-500' : 'border-gray-300'} text-sm`}>
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Select value={day} onValueChange={(value) => handleChange('day', value)}>
+              <SelectTrigger className={`${hasError ? 'border-red-500' : 'border-gray-300'} text-sm`}>
+                <SelectValue placeholder="Day" />
+              </SelectTrigger>
+              <SelectContent>
+                {days.map((d) => (
+                  <SelectItem key={d.value} value={d.value}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Select value={year} onValueChange={(value) => handleChange('year', value)}>
+              <SelectTrigger className={`${hasError ? 'border-red-500' : 'border-gray-300'} text-sm`}>
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((y) => (
+                  <SelectItem key={y.value} value={y.value}>
+                    {y.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
     )
   }
@@ -499,12 +546,10 @@ export default function DepositClaimPage() {
                     <Label htmlFor="depositDate" className="text-gray-700">
                       Deposit Payment Date *
                     </Label>
-                    <CustomDateInput
+                    <DateSelector
                       id="depositDate"
                       value={formData.depositDate}
                       onChange={(value) => handleInputChange("depositDate", value)}
-                      className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1"
-                      title="Please select your deposit payment date"
                       hasError={!!errors.depositDate}
                     />
                     {errors.depositDate && <p className="text-sm text-red-600 mt-1">{errors.depositDate}</p>}
@@ -514,12 +559,10 @@ export default function DepositClaimPage() {
                     <Label htmlFor="moveOutDate" className="text-gray-700">
                       Move-Out Date *
                     </Label>
-                    <CustomDateInput
+                    <DateSelector
                       id="moveOutDate"
                       value={formData.moveOutDate}
                       onChange={(value) => handleInputChange("moveOutDate", value)}
-                      className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm mt-1"
-                      title="Please select your move-out date"
                       hasError={!!errors.moveOutDate}
                     />
                     {errors.moveOutDate && <p className="text-sm text-red-600 mt-1">{errors.moveOutDate}</p>}
