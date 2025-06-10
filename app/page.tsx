@@ -107,6 +107,7 @@ export default function DepositClaimPage() {
   const [activeTab, setActiveTab] = useState("form")
   const [apiError, setApiError] = useState<string>("")
   const [copySuccess, setCopySuccess] = useState(false)
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false)
 
   // Enhanced event tracking function (ready for GA/PostHog integration)
   const trackEvent = (eventName: string, properties?: Record<string, any>) => {
@@ -149,12 +150,14 @@ export default function DepositClaimPage() {
     id, 
     value, 
     onChange, 
-    hasError 
+    hasError,
+    disabled = false
   }: {
     id: string
     value: string
     onChange: (value: string) => void
     hasError?: boolean
+    disabled?: boolean
   }) => {
     const [isOpen, setIsOpen] = useState(false)
     const [currentView, setCurrentView] = useState<'main' | 'month' | 'year'>('main')
@@ -369,21 +372,22 @@ export default function DepositClaimPage() {
           id={id}
           type="text"
           value={formatDisplayDate(value)}
-          onClick={() => setIsOpen(!isOpen)}
-          onFocus={() => setIsOpen(true)}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          onFocus={() => !disabled && setIsOpen(true)}
           readOnly
           placeholder="Select a date"
+          disabled={disabled}
           className={`
             flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm 
             ring-offset-background placeholder:text-muted-foreground 
             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 
             focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50
-            cursor-pointer
+            ${disabled ? 'cursor-pointer bg-gray-50' : 'cursor-pointer'}
             ${hasError ? 'border-red-500' : 'border-gray-300'}
           `}
         />
         
-        {isOpen && (
+        {isOpen && !disabled && (
           <div className="absolute top-full left-0 z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 min-w-[300px]">
             {currentView === 'main' && renderMainView()}
             {currentView === 'month' && renderMonthView()}
@@ -748,44 +752,69 @@ export default function DepositClaimPage() {
            formData.forwardingAddress.trim() !== ''
   }, [formData])
 
-  // Authentication gate component
-  const AuthenticationGate = () => (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-      <div className="p-8 text-center">
-        <div className="mb-6">
-          <LockIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign in Required</h2>
-          <p className="text-gray-600 max-w-md mx-auto">
-            You need to create an account and sign in before you can generate legal demand letters. 
-            This helps us provide you with personalized service and keep track of your letters.
-          </p>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-center gap-4">
-            <div className="flex items-center gap-2 text-green-600">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm">Free to use</span>
-            </div>
-            <div className="flex items-center gap-2 text-green-600">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm">Secure & private</span>
-            </div>
-            <div className="flex items-center gap-2 text-green-600">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm">State-specific</span>
-            </div>
+  // Handle input focus when not authenticated
+  const handleInputFocus = () => {
+    if (!user) {
+      setShowSignInPrompt(true)
+    }
+  }
+
+  // Sign in prompt modal component
+  const SignInPromptModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Background overlay */}
+      <div 
+        className="absolute inset-0 bg-black bg-opacity-50" 
+        onClick={() => setShowSignInPrompt(false)}
+      />
+      
+      {/* Modal content */}
+      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Sign in Required</h2>
+            <button
+              onClick={() => setShowSignInPrompt(false)}
+              className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="mb-6">
+            <LockIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-600 text-center">
+              You need to create an account and sign in before you can fill out the form and generate legal demand letters.
+            </p>
           </div>
           
-          <p className="text-sm text-gray-500 mt-4">
-            Click "Sign up" in the top navigation to get started in less than a minute.
-          </p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-4 mb-4">
+              <div className="flex items-center gap-2 text-green-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm">Free to use</span>
+              </div>
+              <div className="flex items-center gap-2 text-green-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm">Secure & private</span>
+              </div>
+              <div className="flex items-center gap-2 text-green-600">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm">State-specific</span>
+              </div>
+            </div>
+            
+            <p className="text-sm text-gray-500 text-center">
+              Click "Sign up" in the top navigation to get started in less than a minute.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -809,7 +838,42 @@ export default function DepositClaimPage() {
             <div className="text-gray-500">Loading...</div>
           </div>
         ) : !user ? (
-          <AuthenticationGate />
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center">
+            <div className="text-gray-500">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign in Required</h2>
+              <p className="text-gray-600 max-w-md mx-auto">
+                You need to create an account and sign in before you can generate legal demand letters. 
+                This helps us provide you with personalized service and keep track of your letters.
+              </p>
+            </div>
+            
+            <div className="space-y-4 mt-4">
+              <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center gap-2 text-green-600">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm">Free to use</span>
+                </div>
+                <div className="flex items-center gap-2 text-green-600">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm">Secure & private</span>
+                </div>
+                <div className="flex items-center gap-2 text-green-600">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm">State-specific</span>
+                </div>
+              </div>
+              
+              <p className="text-sm text-gray-500 mt-4">
+                Click "Sign up" in the top navigation to get started in less than a minute.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
             <Tabs defaultValue="form" value={activeTab} onValueChange={(value) => {
@@ -887,9 +951,12 @@ export default function DepositClaimPage() {
                         <Input
                           id="tenantName"
                           value={formData.tenantName}
-                          onChange={(e) => handleInputChange("tenantName", e.target.value)}
-                          className={`mt-1 ${errors.tenantName ? "border-red-500" : "border-gray-300"}`}
+                          onChange={(e) => user ? handleInputChange("tenantName", e.target.value) : null}
+                          onFocus={handleInputFocus}
+                          onClick={handleInputFocus}
+                          className={`mt-1 ${errors.tenantName ? "border-red-500" : "border-gray-300"} ${!user ? "cursor-pointer bg-gray-50" : ""}`}
                           placeholder="Enter your full legal name"
+                          readOnly={!user}
                         />
                         {errors.tenantName && <p className="text-sm text-red-600 mt-1">{errors.tenantName}</p>}
                       </div>
@@ -898,8 +965,15 @@ export default function DepositClaimPage() {
                         <Label htmlFor="state" className="text-gray-700">
                           State *
                         </Label>
-                        <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
-                          <SelectTrigger className={`mt-1 ${errors.state ? "border-red-500" : "border-gray-300"}`}>
+                        <Select 
+                          value={formData.state} 
+                          onValueChange={(value) => user ? handleInputChange("state", value) : null}
+                          disabled={!user}
+                        >
+                          <SelectTrigger 
+                            className={`mt-1 ${errors.state ? "border-red-500" : "border-gray-300"} ${!user ? "cursor-pointer bg-gray-50" : ""}`}
+                            onClick={handleInputFocus}
+                          >
                             <SelectValue placeholder="Select your state" />
                           </SelectTrigger>
                           <SelectContent>
@@ -925,9 +999,12 @@ export default function DepositClaimPage() {
                           min="0"
                           step="0.01"
                           value={formData.depositAmount}
-                          onChange={(e) => handleInputChange("depositAmount", e.target.value)}
-                          className={`mt-1 ${errors.depositAmount ? "border-red-500" : "border-gray-300"}`}
+                          onChange={(e) => user ? handleInputChange("depositAmount", e.target.value) : null}
+                          onFocus={handleInputFocus}
+                          onClick={handleInputFocus}
+                          className={`mt-1 ${errors.depositAmount ? "border-red-500" : "border-gray-300"} ${!user ? "cursor-pointer bg-gray-50" : ""}`}
                           placeholder="1500.00"
+                          readOnly={!user}
                         />
                         {errors.depositAmount && <p className="text-sm text-red-600 mt-1">{errors.depositAmount}</p>}
                       </div>
@@ -936,12 +1013,15 @@ export default function DepositClaimPage() {
                         <Label htmlFor="depositDate" className="text-gray-700">
                           Deposit Payment Date *
                         </Label>
-                        <NativeDatePicker
-                          id="depositDate"
-                          value={formData.depositDate}
-                          onChange={(value) => handleInputChange("depositDate", value)}
-                          hasError={!!errors.depositDate}
-                        />
+                        <div onClick={handleInputFocus}>
+                          <NativeDatePicker
+                            id="depositDate"
+                            value={formData.depositDate}
+                            onChange={(value) => user ? handleInputChange("depositDate", value) : null}
+                            hasError={!!errors.depositDate}
+                            disabled={!user}
+                          />
+                        </div>
                         {errors.depositDate && <p className="text-sm text-red-600 mt-1">{errors.depositDate}</p>}
                       </div>
 
@@ -949,12 +1029,15 @@ export default function DepositClaimPage() {
                         <Label htmlFor="moveOutDate" className="text-gray-700">
                           Move-Out Date *
                         </Label>
-                        <NativeDatePicker
-                          id="moveOutDate"
-                          value={formData.moveOutDate}
-                          onChange={(value) => handleInputChange("moveOutDate", value)}
-                          hasError={!!errors.moveOutDate}
-                        />
+                        <div onClick={handleInputFocus}>
+                          <NativeDatePicker
+                            id="moveOutDate"
+                            value={formData.moveOutDate}
+                            onChange={(value) => user ? handleInputChange("moveOutDate", value) : null}
+                            hasError={!!errors.moveOutDate}
+                            disabled={!user}
+                          />
+                        </div>
                         {errors.moveOutDate && <p className="text-sm text-red-600 mt-1">{errors.moveOutDate}</p>}
                       </div>
                     </div>
@@ -966,10 +1049,13 @@ export default function DepositClaimPage() {
                       <Textarea
                         id="rentalAddress"
                         value={formData.rentalAddress}
-                        onChange={(e) => handleInputChange("rentalAddress", e.target.value)}
-                        className={`mt-1 ${errors.rentalAddress ? "border-red-500" : "border-gray-300"}`}
+                        onChange={(e) => user ? handleInputChange("rentalAddress", e.target.value) : null}
+                        onFocus={handleInputFocus}
+                        onClick={handleInputFocus}
+                        className={`mt-1 ${errors.rentalAddress ? "border-red-500" : "border-gray-300"} ${!user ? "cursor-pointer bg-gray-50" : ""}`}
                         placeholder="123 Main St, City, State, ZIP"
                         rows={4}
+                        readOnly={!user}
                       />
                       {errors.rentalAddress && <p className="text-sm text-red-600 mt-1">{errors.rentalAddress}</p>}
                     </div>
@@ -981,10 +1067,13 @@ export default function DepositClaimPage() {
                       <Textarea
                         id="landlordInfo"
                         value={formData.landlordInfo}
-                        onChange={(e) => handleInputChange("landlordInfo", e.target.value)}
-                        className={`mt-1 ${errors.landlordInfo ? "border-red-500" : "border-gray-300"}`}
+                        onChange={(e) => user ? handleInputChange("landlordInfo", e.target.value) : null}
+                        onFocus={handleInputFocus}
+                        onClick={handleInputFocus}
+                        className={`mt-1 ${errors.landlordInfo ? "border-red-500" : "border-gray-300"} ${!user ? "cursor-pointer bg-gray-50" : ""}`}
                         placeholder="John Smith&#10;ABC Property Management&#10;456 Business Ave&#10;City, State, ZIP"
                         rows={4}
+                        readOnly={!user}
                       />
                       {errors.landlordInfo && <p className="text-sm text-red-600 mt-1">{errors.landlordInfo}</p>}
                     </div>
@@ -1005,10 +1094,13 @@ export default function DepositClaimPage() {
                       <Textarea
                         id="forwardingAddress"
                         value={formData.forwardingAddress}
-                        onChange={(e) => handleInputChange("forwardingAddress", e.target.value)}
-                        className={`mt-1 ${errors.forwardingAddress ? "border-red-500" : "border-gray-300"}`}
+                        onChange={(e) => user ? handleInputChange("forwardingAddress", e.target.value) : null}
+                        onFocus={handleInputFocus}
+                        onClick={handleInputFocus}
+                        className={`mt-1 ${errors.forwardingAddress ? "border-red-500" : "border-gray-300"} ${!user ? "cursor-pointer bg-gray-50" : ""}`}
                         placeholder="Your Full Name&#10;123 Current Street&#10;City, State, ZIP&#10;Phone: (555) 123-4567"
                         rows={4}
+                        readOnly={!user}
                       />
                       {errors.forwardingAddress && <p className="text-sm text-red-600 mt-1">{errors.forwardingAddress}</p>}
                       <p className="text-xs text-gray-500 mt-1">
@@ -1024,9 +1116,12 @@ export default function DepositClaimPage() {
                         id="tenantEmail"
                         type="email"
                         value={formData.tenantEmail}
-                        onChange={(e) => handleInputChange("tenantEmail", e.target.value)}
-                        className={`mt-1 ${errors.tenantEmail ? "border-red-500" : "border-gray-300"}`}
+                        onChange={(e) => user ? handleInputChange("tenantEmail", e.target.value) : null}
+                        onFocus={handleInputFocus}
+                        onClick={handleInputFocus}
+                        className={`mt-1 ${errors.tenantEmail ? "border-red-500" : "border-gray-300"} ${!user ? "cursor-pointer bg-gray-50" : ""}`}
                         placeholder="your.email@example.com"
+                        readOnly={!user}
                       />
                       {errors.tenantEmail && <p className="text-sm text-red-600 mt-1">{errors.tenantEmail}</p>}
                     </div>
@@ -1034,9 +1129,10 @@ export default function DepositClaimPage() {
                     <Button
                       type="submit"
                       className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 hidden md:block disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
+                      disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0 || !user}
+                      onClick={!user ? handleInputFocus : undefined}
                     >
-                      {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
+                      {!user ? "Sign in to Generate Letter" : (isLoading ? "Generating Letter..." : "Generate Legal Demand Letter")}
                     </Button>
                   </form>
 
@@ -1044,11 +1140,11 @@ export default function DepositClaimPage() {
                   <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-50 shadow-lg">
                     <Button
                       type="button"
-                      onClick={handleSubmit}
+                      onClick={!user ? handleInputFocus : handleSubmit}
                       className="w-full h-12 text-lg bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
-                      disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
+                      disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0 || !user}
                     >
-                      {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
+                      {!user ? "Sign in to Generate Letter" : (isLoading ? "Generating Letter..." : "Generate Legal Demand Letter")}
                     </Button>
                   </div>
 
@@ -1204,6 +1300,8 @@ export default function DepositClaimPage() {
           </p>
         </div>
       </footer>
+
+      {showSignInPrompt && <SignInPromptModal />}
     </div>
   )
 }
