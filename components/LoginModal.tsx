@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label'
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
+  onSwitchToSignUp: () => void
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export function LoginModal({ isOpen, onClose, onSwitchToSignUp }: LoginModalProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -31,14 +32,21 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       return
     }
 
-    const success = await login(email, password)
-    if (success) {
+    const result = await login(email, password)
+    if (result.success) {
       setEmail('')
       setPassword('')
       onClose()
     } else {
-      setError('Login failed. Please check your email and password')
+      setError(result.error || 'Sign in failed. Please try again.')
     }
+  }
+
+  const handleClose = () => {
+    setEmail('')
+    setPassword('')
+    setError('')
+    onClose()
   }
 
   if (!isOpen) return null
@@ -48,7 +56,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       {/* Background overlay */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50" 
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       {/* Modal content */}
@@ -56,9 +64,9 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Log in to your account</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Sign in to your account</h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
             >
               ×
@@ -108,25 +116,18 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               className="w-full bg-teal-600 hover:bg-teal-700"
               disabled={isLoading}
             >
-              {isLoading ? 'Logging in...' : 'Log in'}
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
-          {/* Demo info */}
-          <div className="mt-4 p-3 bg-blue-50 rounded-md">
-            <p className="text-sm text-blue-800">
-              <strong>Demo Login:</strong>
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Use any email format + password with 6+ characters to log in
-            </p>
-          </div>
-
-          {/* Register link */}
+          {/* Sign up link */}
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?
-              <button className="text-teal-600 hover:text-teal-700 font-medium ml-1">
+              <button 
+                onClick={onSwitchToSignUp}
+                className="text-teal-600 hover:text-teal-700 font-medium ml-1"
+              >
                 Sign up
               </button>
             </p>

@@ -14,6 +14,7 @@ import { Navbar } from "@/components/navbar"
 import { stateLaw } from "@/lib/stateLaw"
 import { calculateStatutoryDeadline } from "@/lib/stateLaw"
 import { LetterToolbar } from "@/components/LetterToolbar"
+import { useAuth } from "@/contexts/AuthContext"
 
 const US_STATES = [
   { code: "AL", name: "Alabama" },
@@ -85,6 +86,8 @@ interface FormErrors {
 }
 
 export default function DepositClaimPage() {
+  const { user, isLoading: authLoading } = useAuth()
+  
   const [formData, setFormData] = useState<FormData>({
     tenantName: "",
     state: "",
@@ -745,6 +748,49 @@ export default function DepositClaimPage() {
            formData.forwardingAddress.trim() !== ''
   }, [formData])
 
+  // Authentication gate component
+  const AuthenticationGate = () => (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+      <div className="p-8 text-center">
+        <div className="mb-6">
+          <LockIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign in Required</h2>
+          <p className="text-gray-600 max-w-md mx-auto">
+            You need to create an account and sign in before you can generate legal demand letters. 
+            This helps us provide you with personalized service and keep track of your letters.
+          </p>
+        </div>
+        
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center gap-2 text-green-600">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm">Free to use</span>
+            </div>
+            <div className="flex items-center gap-2 text-green-600">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm">Secure & private</span>
+            </div>
+            <div className="flex items-center gap-2 text-green-600">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm">State-specific</span>
+            </div>
+          </div>
+          
+          <p className="text-sm text-gray-500 mt-4">
+            Click "Sign up" in the top navigation to get started in less than a minute.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -758,389 +804,397 @@ export default function DepositClaimPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-          <Tabs defaultValue="form" value={activeTab} onValueChange={(value) => {
-            setActiveTab(value)
-            trackEvent('tab_switched', {
-              from_tab: activeTab,
-              to_tab: value,
-              has_generated_letter: !!generatedLetter,
-              form_completion: Math.round((Object.values(formData).filter(v => v.trim() !== '').length / Object.keys(formData).length) * 100)
-            })
-          }} className="w-full">
-            <div className="border-b border-gray-200 bg-gray-50">
-              <TabsList className="h-14 w-full bg-transparent rounded-none border-b border-gray-200 px-6">
-                <TabsTrigger
-                  value="form"
-                  className="data-[state=active]:border-green-600 data-[state=active]:text-green-600 data-[state=active]:bg-white rounded-t-lg border-b-2 border-transparent px-6"
-                >
-                  📝 Form
-                </TabsTrigger>
-                <TabsTrigger
-                  value="letter"
-                  className="data-[state=active]:border-green-600 data-[state=active]:text-green-600 data-[state=active]:bg-white rounded-t-lg border-b-2 border-transparent px-6"
-                >
-                  📄 Generated Letter
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="form" className="p-6">
-              <div className="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm">
-                {apiError && (
-                  <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p className="text-red-800 font-medium">Error</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setApiError("")}
-                        className="text-red-500 hover:text-red-700 text-xl leading-none"
-                        aria-label="Close error message"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <p className="text-red-700 mt-1">{apiError}</p>
-                  </div>
-                )}
-
-                {/* Progress Bar */}
-                <div className="mb-6">
-                  <div className="flex justify-between text-sm text-gray-600 mb-2">
-                    <span>Progress</span>
-                    <span>{Object.values(formData).filter(value => value.trim() !== '').length} / {Object.keys(formData).length}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-teal-600 h-2 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${(Object.values(formData).filter(value => value.trim() !== '').length / Object.keys(formData).length) * 100}%` 
-                      }}
-                    ></div>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-lg p-6 shadow-sm border border-gray-100">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <Label htmlFor="tenantName" className="text-gray-700">
-                        Your Full Name *
-                      </Label>
-                      <Input
-                        id="tenantName"
-                        value={formData.tenantName}
-                        onChange={(e) => handleInputChange("tenantName", e.target.value)}
-                        className={`mt-1 ${errors.tenantName ? "border-red-500" : "border-gray-300"}`}
-                        placeholder="Enter your full legal name"
-                      />
-                      {errors.tenantName && <p className="text-sm text-red-600 mt-1">{errors.tenantName}</p>}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="state" className="text-gray-700">
-                        State *
-                      </Label>
-                      <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
-                        <SelectTrigger className={`mt-1 ${errors.state ? "border-red-500" : "border-gray-300"}`}>
-                          <SelectValue placeholder="Select your state" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {US_STATES.map((state) => (
-                            <SelectItem key={state.code} value={state.code}>
-                              {state.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.state && <p className="text-sm text-red-600 mt-1">{errors.state}</p>}
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-3 gap-6">
-                    <div>
-                      <Label htmlFor="depositAmount" className="text-gray-700">
-                        Security Deposit Amount (USD) *
-                      </Label>
-                      <Input
-                        id="depositAmount"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.depositAmount}
-                        onChange={(e) => handleInputChange("depositAmount", e.target.value)}
-                        className={`mt-1 ${errors.depositAmount ? "border-red-500" : "border-gray-300"}`}
-                        placeholder="1500.00"
-                      />
-                      {errors.depositAmount && <p className="text-sm text-red-600 mt-1">{errors.depositAmount}</p>}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="depositDate" className="text-gray-700">
-                        Deposit Payment Date *
-                      </Label>
-                      <NativeDatePicker
-                        id="depositDate"
-                        value={formData.depositDate}
-                        onChange={(value) => handleInputChange("depositDate", value)}
-                        hasError={!!errors.depositDate}
-                      />
-                      {errors.depositDate && <p className="text-sm text-red-600 mt-1">{errors.depositDate}</p>}
-                    </div>
-
-                    <div>
-                      <Label htmlFor="moveOutDate" className="text-gray-700">
-                        Move-Out Date *
-                      </Label>
-                      <NativeDatePicker
-                        id="moveOutDate"
-                        value={formData.moveOutDate}
-                        onChange={(value) => handleInputChange("moveOutDate", value)}
-                        hasError={!!errors.moveOutDate}
-                      />
-                      {errors.moveOutDate && <p className="text-sm text-red-600 mt-1">{errors.moveOutDate}</p>}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="rentalAddress" className="text-gray-700">
-                      Rental Property Address *
-                    </Label>
-                    <Textarea
-                      id="rentalAddress"
-                      value={formData.rentalAddress}
-                      onChange={(e) => handleInputChange("rentalAddress", e.target.value)}
-                      className={`mt-1 ${errors.rentalAddress ? "border-red-500" : "border-gray-300"}`}
-                      placeholder="123 Main St, City, State, ZIP"
-                      rows={4}
-                    />
-                    {errors.rentalAddress && <p className="text-sm text-red-600 mt-1">{errors.rentalAddress}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="landlordInfo" className="text-gray-700">
-                      Landlord Name and Address *
-                    </Label>
-                    <Textarea
-                      id="landlordInfo"
-                      value={formData.landlordInfo}
-                      onChange={(e) => handleInputChange("landlordInfo", e.target.value)}
-                      className={`mt-1 ${errors.landlordInfo ? "border-red-500" : "border-gray-300"}`}
-                      placeholder="John Smith&#10;ABC Property Management&#10;456 Business Ave&#10;City, State, ZIP"
-                      rows={4}
-                    />
-                    {errors.landlordInfo && <p className="text-sm text-red-600 mt-1">{errors.landlordInfo}</p>}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="forwardingAddress" className="text-gray-700 flex items-center gap-2">
-                      Your Current Address (Forwarding Address) *
-                      <div className="relative group">
-                        <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-64">
-                          💡 Important: Send your letter via Certified Mail with Return Receipt Requested to prove delivery. Keep the receipt as legal evidence.
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                        </div>
-                      </div>
-                    </Label>
-                    <Textarea
-                      id="forwardingAddress"
-                      value={formData.forwardingAddress}
-                      onChange={(e) => handleInputChange("forwardingAddress", e.target.value)}
-                      className={`mt-1 ${errors.forwardingAddress ? "border-red-500" : "border-gray-300"}`}
-                      placeholder="Your Full Name&#10;123 Current Street&#10;City, State, ZIP&#10;Phone: (555) 123-4567"
-                      rows={4}
-                    />
-                    {errors.forwardingAddress && <p className="text-sm text-red-600 mt-1">{errors.forwardingAddress}</p>}
-                    <p className="text-xs text-gray-500 mt-1">
-                      This address will be used in the letter header and for receiving payment or correspondence.
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="tenantEmail" className="text-gray-700">
-                      Your Email Address *
-                    </Label>
-                    <Input
-                      id="tenantEmail"
-                      type="email"
-                      value={formData.tenantEmail}
-                      onChange={(e) => handleInputChange("tenantEmail", e.target.value)}
-                      className={`mt-1 ${errors.tenantEmail ? "border-red-500" : "border-gray-300"}`}
-                      placeholder="your.email@example.com"
-                    />
-                    {errors.tenantEmail && <p className="text-sm text-red-600 mt-1">{errors.tenantEmail}</p>}
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 hidden md:block disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
+        {authLoading ? (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center">
+            <div className="text-gray-500">Loading...</div>
+          </div>
+        ) : !user ? (
+          <AuthenticationGate />
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+            <Tabs defaultValue="form" value={activeTab} onValueChange={(value) => {
+              setActiveTab(value)
+              trackEvent('tab_switched', {
+                from_tab: activeTab,
+                to_tab: value,
+                has_generated_letter: !!generatedLetter,
+                form_completion: Math.round((Object.values(formData).filter(v => v.trim() !== '').length / Object.keys(formData).length) * 100)
+              })
+            }} className="w-full">
+              <div className="border-b border-gray-200 bg-gray-50">
+                <TabsList className="h-14 w-full bg-transparent rounded-none border-b border-gray-200 px-6">
+                  <TabsTrigger
+                    value="form"
+                    className="data-[state=active]:border-green-600 data-[state=active]:text-green-600 data-[state=active]:bg-white rounded-t-lg border-b-2 border-transparent px-6"
                   >
-                    {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
-                  </Button>
-                </form>
-
-                {/* Fixed bottom CTA for mobile - Green theme */}
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-50 shadow-lg">
-                  <Button
-                    type="button"
-                    onClick={handleSubmit}
-                    className="w-full h-12 text-lg bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
-                    disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
+                    📝 Form
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="letter"
+                    className="data-[state=active]:border-green-600 data-[state=active]:text-green-600 data-[state=active]:bg-white rounded-t-lg border-b-2 border-transparent px-6"
                   >
-                    {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
-                  </Button>
-                </div>
-
-                <div className="mt-8 border-t border-gray-100 pt-6">
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <LockIcon className="h-5 w-5 text-teal-600 mt-0.5" />
-                      <p className="text-gray-600">Your information is processed securely and not stored</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <FileTextIcon className="h-5 w-5 text-teal-600 mt-0.5" />
-                      <p className="text-gray-600">Generated letter is automatically formatted and ready to copy</p>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <BookIcon className="h-5 w-5 text-teal-600 mt-0.5" />
-                      <p className="text-gray-600">Based on state-specific legal requirements</p>
-                    </div>
-                  </div>
-                </div>
+                    📄 Generated Letter
+                  </TabsTrigger>
+                </TabsList>
               </div>
-              
-              {/* Add bottom padding for mobile fixed button */}
-              <div className="h-20 md:hidden"></div>
-            </TabsContent>
 
-            <TabsContent value="letter" className="p-6">
-              <div className="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm">
-                {generatedLetter ? (
-                  <div className="space-y-4">
-                    {/* Enhanced success alert with statutory deadline */}
-                    <div className="bg-green-100 border-l-4 border-green-500 rounded-lg p-4 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-green-500 rounded-full p-1.5 flex-shrink-0 mt-0.5">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="text-white"
-                          >
-                            <path d="M20 6L9 17l-5-5"></path>
+              <TabsContent value="form" className="p-6">
+                <div className="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm">
+                  {apiError && (
+                    <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
+                          <p className="text-red-800 font-medium">Error</p>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-green-800 font-bold text-base mb-2">
-                            ✅ Letter Generated Successfully!
-                          </h3>
-                          {formData.state && formData.moveOutDate && (
-                            <div className="bg-white rounded-md p-3 border border-green-200">
-                              <p className="text-green-700 font-medium text-sm mb-1">
-                                📅 Statutory Deadline Information:
-                              </p>
-                              <p className="text-green-800 font-semibold">
-                                {calculateStatutoryDeadline(formData.state, formData.moveOutDate)}
-                              </p>
-                              <p className="text-green-600 text-xs mt-1">
-                                Your landlord had until this date to return your deposit or provide itemized deductions.
-                              </p>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setApiError("")}
+                          className="text-red-500 hover:text-red-700 text-xl leading-none"
+                          aria-label="Close error message"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <p className="text-red-700 mt-1">{apiError}</p>
+                    </div>
+                  )}
+
+                  {/* Progress Bar */}
+                  <div className="mb-6">
+                    <div className="flex justify-between text-sm text-gray-600 mb-2">
+                      <span>Progress</span>
+                      <span>{Object.values(formData).filter(value => value.trim() !== '').length} / {Object.keys(formData).length}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-teal-600 h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${(Object.values(formData).filter(value => value.trim() !== '').length / Object.keys(formData).length) * 100}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-lg p-6 shadow-sm border border-gray-100">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <Label htmlFor="tenantName" className="text-gray-700">
+                          Your Full Name *
+                        </Label>
+                        <Input
+                          id="tenantName"
+                          value={formData.tenantName}
+                          onChange={(e) => handleInputChange("tenantName", e.target.value)}
+                          className={`mt-1 ${errors.tenantName ? "border-red-500" : "border-gray-300"}`}
+                          placeholder="Enter your full legal name"
+                        />
+                        {errors.tenantName && <p className="text-sm text-red-600 mt-1">{errors.tenantName}</p>}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="state" className="text-gray-700">
+                          State *
+                        </Label>
+                        <Select value={formData.state} onValueChange={(value) => handleInputChange("state", value)}>
+                          <SelectTrigger className={`mt-1 ${errors.state ? "border-red-500" : "border-gray-300"}`}>
+                            <SelectValue placeholder="Select your state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {US_STATES.map((state) => (
+                              <SelectItem key={state.code} value={state.code}>
+                                {state.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.state && <p className="text-sm text-red-600 mt-1">{errors.state}</p>}
                       </div>
                     </div>
 
-                    {/* Letter Toolbar */}
-                    <LetterToolbar 
-                      letter={generatedLetter}
-                      onCopy={() => {
-                        setCopySuccess(true)
-                        setTimeout(() => setCopySuccess(false), 2000)
-                        trackEvent('letter_copied', {
-                          state: formData.state,
-                          method: 'toolbar'
-                        })
-                      }}
-                      onDownload={() => {
-                        trackEvent('letter_downloaded', {
-                          state: formData.state,
-                          method: 'toolbar'
-                        })
-                      }}
-                    />
-
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-                      {/* Header bar with gradient */}
-                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-4 py-3">
-                        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                          📄 Your Legal Demand Letter
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Ready to Send</span>
-                        </h3>
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <div>
+                        <Label htmlFor="depositAmount" className="text-gray-700">
+                          Security Deposit Amount (USD) *
+                        </Label>
+                        <Input
+                          id="depositAmount"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.depositAmount}
+                          onChange={(e) => handleInputChange("depositAmount", e.target.value)}
+                          className={`mt-1 ${errors.depositAmount ? "border-red-500" : "border-gray-300"}`}
+                          placeholder="1500.00"
+                        />
+                        {errors.depositAmount && <p className="text-sm text-red-600 mt-1">{errors.depositAmount}</p>}
                       </div>
+
+                      <div>
+                        <Label htmlFor="depositDate" className="text-gray-700">
+                          Deposit Payment Date *
+                        </Label>
+                        <NativeDatePicker
+                          id="depositDate"
+                          value={formData.depositDate}
+                          onChange={(value) => handleInputChange("depositDate", value)}
+                          hasError={!!errors.depositDate}
+                        />
+                        {errors.depositDate && <p className="text-sm text-red-600 mt-1">{errors.depositDate}</p>}
+                      </div>
+
+                      <div>
+                        <Label htmlFor="moveOutDate" className="text-gray-700">
+                          Move-Out Date *
+                        </Label>
+                        <NativeDatePicker
+                          id="moveOutDate"
+                          value={formData.moveOutDate}
+                          onChange={(value) => handleInputChange("moveOutDate", value)}
+                          hasError={!!errors.moveOutDate}
+                        />
+                        {errors.moveOutDate && <p className="text-sm text-red-600 mt-1">{errors.moveOutDate}</p>}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="rentalAddress" className="text-gray-700">
+                        Rental Property Address *
+                      </Label>
                       <Textarea
-                        id="letter"
-                        value={generatedLetter}
-                        readOnly
-                        rows={20}
-                        className="font-mono text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-gray-50"
+                        id="rentalAddress"
+                        value={formData.rentalAddress}
+                        onChange={(e) => handleInputChange("rentalAddress", e.target.value)}
+                        className={`mt-1 ${errors.rentalAddress ? "border-red-500" : "border-gray-300"}`}
+                        placeholder="123 Main St, City, State, ZIP"
+                        rows={4}
                       />
+                      {errors.rentalAddress && <p className="text-sm text-red-600 mt-1">{errors.rentalAddress}</p>}
                     </div>
 
-                    {copySuccess && (
-                      <div className="text-center">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                          ✓ Copied to clipboard!
-                        </span>
-                      </div>
-                    )}
+                    <div>
+                      <Label htmlFor="landlordInfo" className="text-gray-700">
+                        Landlord Name and Address *
+                      </Label>
+                      <Textarea
+                        id="landlordInfo"
+                        value={formData.landlordInfo}
+                        onChange={(e) => handleInputChange("landlordInfo", e.target.value)}
+                        className={`mt-1 ${errors.landlordInfo ? "border-red-500" : "border-gray-300"}`}
+                        placeholder="John Smith&#10;ABC Property Management&#10;456 Business Ave&#10;City, State, ZIP"
+                        rows={4}
+                      />
+                      {errors.landlordInfo && <p className="text-sm text-red-600 mt-1">{errors.landlordInfo}</p>}
+                    </div>
 
-                    <div className="flex justify-center">
+                    <div>
+                      <Label htmlFor="forwardingAddress" className="text-gray-700 flex items-center gap-2">
+                        Your Current Address (Forwarding Address) *
+                        <div className="relative group">
+                          <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-64">
+                            💡 Important: Send your letter via Certified Mail with Return Receipt Requested to prove delivery. Keep the receipt as legal evidence.
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                      </Label>
+                      <Textarea
+                        id="forwardingAddress"
+                        value={formData.forwardingAddress}
+                        onChange={(e) => handleInputChange("forwardingAddress", e.target.value)}
+                        className={`mt-1 ${errors.forwardingAddress ? "border-red-500" : "border-gray-300"}`}
+                        placeholder="Your Full Name&#10;123 Current Street&#10;City, State, ZIP&#10;Phone: (555) 123-4567"
+                        rows={4}
+                      />
+                      {errors.forwardingAddress && <p className="text-sm text-red-600 mt-1">{errors.forwardingAddress}</p>}
+                      <p className="text-xs text-gray-500 mt-1">
+                        This address will be used in the letter header and for receiving payment or correspondence.
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="tenantEmail" className="text-gray-700">
+                        Your Email Address *
+                      </Label>
+                      <Input
+                        id="tenantEmail"
+                        type="email"
+                        value={formData.tenantEmail}
+                        onChange={(e) => handleInputChange("tenantEmail", e.target.value)}
+                        className={`mt-1 ${errors.tenantEmail ? "border-red-500" : "border-gray-300"}`}
+                        placeholder="your.email@example.com"
+                      />
+                      {errors.tenantEmail && <p className="text-sm text-red-600 mt-1">{errors.tenantEmail}</p>}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 hidden md:block disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
+                    >
+                      {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
+                    </Button>
+                  </form>
+
+                  {/* Fixed bottom CTA for mobile - Green theme */}
+                  <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-50 shadow-lg">
+                    <Button
+                      type="button"
+                      onClick={handleSubmit}
+                      className="w-full h-12 text-lg bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
+                      disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
+                    >
+                      {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
+                    </Button>
+                  </div>
+
+                  <div className="mt-8 border-t border-gray-100 pt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <LockIcon className="h-5 w-5 text-teal-600 mt-0.5" />
+                        <p className="text-gray-600">Your information is processed securely and not stored</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <FileTextIcon className="h-5 w-5 text-teal-600 mt-0.5" />
+                        <p className="text-gray-600">Generated letter is automatically formatted and ready to copy</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <BookIcon className="h-5 w-5 text-teal-600 mt-0.5" />
+                        <p className="text-gray-600">Based on state-specific legal requirements</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Add bottom padding for mobile fixed button */}
+                <div className="h-20 md:hidden"></div>
+              </TabsContent>
+
+              <TabsContent value="letter" className="p-6">
+                <div className="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm">
+                  {generatedLetter ? (
+                    <div className="space-y-4">
+                      {/* Enhanced success alert with statutory deadline */}
+                      <div className="bg-green-100 border-l-4 border-green-500 rounded-lg p-4 shadow-sm">
+                        <div className="flex items-start gap-3">
+                          <div className="bg-green-500 rounded-full p-1.5 flex-shrink-0 mt-0.5">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-white"
+                            >
+                              <path d="M20 6L9 17l-5-5"></path>
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-green-800 font-bold text-base mb-2">
+                              ✅ Letter Generated Successfully!
+                            </h3>
+                            {formData.state && formData.moveOutDate && (
+                              <div className="bg-white rounded-md p-3 border border-green-200">
+                                <p className="text-green-700 font-medium text-sm mb-1">
+                                  📅 Statutory Deadline Information:
+                                </p>
+                                <p className="text-green-800 font-semibold">
+                                  {calculateStatutoryDeadline(formData.state, formData.moveOutDate)}
+                                </p>
+                                <p className="text-green-600 text-xs mt-1">
+                                  Your landlord had until this date to return your deposit or provide itemized deductions.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Letter Toolbar */}
+                      <LetterToolbar 
+                        letter={generatedLetter}
+                        onCopy={() => {
+                          setCopySuccess(true)
+                          setTimeout(() => setCopySuccess(false), 2000)
+                          trackEvent('letter_copied', {
+                            state: formData.state,
+                            method: 'toolbar'
+                          })
+                        }}
+                        onDownload={() => {
+                          trackEvent('letter_downloaded', {
+                            state: formData.state,
+                            method: 'toolbar'
+                          })
+                        }}
+                      />
+
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+                        {/* Header bar with gradient */}
+                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-4 py-3">
+                          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                            📄 Your Legal Demand Letter
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Ready to Send</span>
+                          </h3>
+                        </div>
+                        <Textarea
+                          id="letter"
+                          value={generatedLetter}
+                          readOnly
+                          rows={20}
+                          className="font-mono text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-gray-50"
+                        />
+                      </div>
+
+                      {copySuccess && (
+                        <div className="text-center">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            ✓ Copied to clipboard!
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-teal-600 text-teal-600 hover:bg-teal-50"
+                          onClick={() => setActiveTab("form")}
+                        >
+                          Back to Form
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <FileTextIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-1">No Letter Generated Yet</h3>
+                      <p className="text-gray-500 mb-4">
+                        Fill out the form and click "Generate Legal Demand Letter" to create your letter.
+                      </p>
                       <Button
                         type="button"
                         variant="outline"
                         className="border-teal-600 text-teal-600 hover:bg-teal-50"
                         onClick={() => setActiveTab("form")}
                       >
-                        Back to Form
+                        Go to Form
                       </Button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <FileTextIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">No Letter Generated Yet</h3>
-                    <p className="text-gray-500 mb-4">
-                      Fill out the form and click "Generate Legal Demand Letter" to create your letter.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-teal-600 text-teal-600 hover:bg-teal-50"
-                      onClick={() => setActiveTab("form")}
-                    >
-                      Go to Form
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+        )}
       </main>
 
       <footer className="bg-gray-50 border-t border-gray-200 mt-12">

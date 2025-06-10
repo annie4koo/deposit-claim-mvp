@@ -8,9 +8,14 @@ interface User {
   name: string
 }
 
+interface UserWithPassword extends User {
+  password: string
+}
+
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  signup: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isLoading: boolean
 }
@@ -22,50 +27,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // 检查本地存储中是否有用户信息
-    const savedUser = localStorage.getItem('user')
+    // Check localStorage for current user session
+    const savedUser = localStorage.getItem('currentUser')
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser))
+        const userData = JSON.parse(savedUser)
+        setUser(userData)
       } catch (error) {
         console.error('Error parsing saved user:', error)
-        localStorage.removeItem('user')
+        localStorage.removeItem('currentUser')
       }
     }
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const signup = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
     
-    // 模拟API调用延迟
+    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000))
     
-    // 简单的演示登录逻辑
-    // 在实际项目中，这里应该调用真实的API
-    if (email && password.length >= 6) {
-      const user: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        email,
-        name: email.split('@')[0]
+    try {
+      // Get existing users from localStorage
+      const existingUsers = localStorage.getItem('registeredUsers')
+      const users: UserWithPassword[] = existingUsers ? JSON.parse(existingUsers) : []
+      
+      // Check if user already exists
+      const userExists = users.find(u => u.email.toLowerCase() === email.toLowerCase())
+      if (userExists) {
+        setIsLoading(false)
+        return { success: false, error: 'An account with this email already exists' }
       }
-      setUser(user)
-      localStorage.setItem('user', JSON.stringify(user))
+      
+      // Create new user
+      const newUser: UserWithPassword = {
+        id: Math.random().toString(36).substr(2, 9),
+        email: email.toLowerCase(),
+        name,
+        password // In real app, this would be hashed
+      }
+      
+      // Save to users database
+      users.push(newUser)
+      localStorage.setItem('registeredUsers', JSON.stringify(users))
+      
       setIsLoading(false)
-      return true
+      return { success: true }
+    } catch (error) {
+      setIsLoading(false)
+      return { success: false, error: 'Failed to create account. Please try again.' }
     }
+  }
+
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true)
     
-    setIsLoading(false)
-    return false
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    try {
+      // Get registered users from localStorage
+      const existingUsers = localStorage.getItem('registeredUsers')
+      const users: UserWithPassword[] = existingUsers ? JSON.parse(existingUsers) : []
+      
+      // Find user by email and password
+      const foundUser = users.find(u => 
+        u.email.toLowerCase() === email.toLowerCase() && 
+        u.password === password
+      )
+      
+      if (!foundUser) {
+        setIsLoading(false)
+        return { success: false, error: 'Invalid email or password' }
+      }
+      
+      // Set current user (without password for security)
+      const { password: _, ...userWithoutPassword } = foundUser
+      setUser(userWithoutPassword)
+      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword))
+      
+      setIsLoading(false)
+      return { success: true }
+    } catch (error) {
+      setIsLoading(false)
+      return { success: false, error: 'Login failed. Please try again.' }
+    }
   }
 
   const logout = () => {
     setUser(null)
-    localStorage.removeItem('user')
+    localStorage.removeItem('currentUser')
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   )

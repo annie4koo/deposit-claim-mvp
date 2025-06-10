@@ -5,15 +5,27 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { LoginModal } from "@/components/LoginModal"
+import { SignUpModal } from "@/components/SignUpModal"
 
 export function Navbar() {
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [showSignUpModal, setShowSignUpModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const { user, logout, isLoading } = useAuth()
 
   const handleLogout = () => {
     logout()
     setShowUserMenu(false)
+  }
+
+  const handleSwitchToSignUp = () => {
+    setShowLoginModal(false)
+    setShowSignUpModal(true)
+  }
+
+  const handleSwitchToSignIn = () => {
+    setShowSignUpModal(false)
+    setShowLoginModal(true)
   }
 
   return (
@@ -113,12 +125,20 @@ export function Navbar() {
                 </div>
               ) : (
                 // 未登录状态
-                <button 
-                  onClick={() => setShowLoginModal(true)}
-                  className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
-                >
-                  Log in
-                </button>
+                <>
+                  <button 
+                    onClick={() => setShowLoginModal(true)}
+                    className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+                  >
+                    Sign in
+                  </button>
+                  <button 
+                    onClick={() => setShowSignUpModal(true)}
+                    className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 text-sm font-medium rounded-md"
+                  >
+                    Sign up
+                  </button>
+                </>
               )}
               <Link href="/">
                 <Button className="bg-teal-600 hover:bg-teal-700">Get Started</Button>
@@ -160,7 +180,15 @@ export function Navbar() {
       {/* 登录模态框 */}
       <LoginModal 
         isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)} 
+        onClose={() => setShowLoginModal(false)}
+        onSwitchToSignUp={handleSwitchToSignUp}
+      />
+
+      {/* 注册模态框 */}
+      <SignUpModal 
+        isOpen={showSignUpModal} 
+        onClose={() => setShowSignUpModal(false)}
+        onSwitchToSignIn={handleSwitchToSignIn}
       />
     </>
   )
