@@ -66,53 +66,79 @@ export function generateStandardTemplate(data: LetterData): string {
     day: "numeric",
   })
 
+  // 计算法定截止日期
+  const moveOutDate = new Date(data.moveOutDate)
+  const statutoryDeadline = new Date(moveOutDate)
+  const daysNum = typeof data.law.days === 'string' ? 14 : data.law.days
+  statutoryDeadline.setDate(statutoryDeadline.getDate() + daysNum)
+  const formattedStatutoryDeadline = statutoryDeadline.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+
   const daysInfo = getDaysInfo(data.moveOutDate, data.law.days)
 
-  return `${currentDate}
+  // 格式化金额为两位小数
+  const formattedAmount = parseFloat(data.depositAmount).toFixed(2)
+
+  return `${data.tenantName}
+[Your Address Line 1]
+[City, State ZIP]
+[Phone Number]
+${data.tenantEmail}
+
+Sent via Certified Mail, Return Receipt Requested
+
+${currentDate}
 
 ${data.landlordInfo}
 
-RE: DEMAND FOR RETURN OF SECURITY DEPOSIT
-Property Address: ${data.rentalAddress}
-Tenant: ${data.tenantName}
+Re: Demand for Return of Security Deposit
+Rental Property: ${data.rentalAddress}
+Amount in Dispute: $${formattedAmount}
 
 Dear Landlord,
 
-I am writing to formally demand the immediate return of my security deposit in the amount of $${data.depositAmount} for the above-referenced rental property.
+FACTUAL BACKGROUND
+On ${data.depositDate}, I paid a security deposit of $${formattedAmount} for the above-referenced property. I returned possession—including keys—on ${data.moveOutDate}. The premises were left in good condition, normal wear and tear excepted.
 
-FACTUAL BACKGROUND:
-On ${data.depositDate}, I paid a security deposit of $${data.depositAmount} for the rental property located at ${data.rentalAddress}. I vacated the premises on ${data.moveOutDate}, leaving the property in good condition, normal wear and tear excepted.
-
-LEGAL DEMAND:
-Under ${data.state} state law, specifically ${data.law.code}, landlords are required to return security deposits within ${data.law.days} days of tenant move-out, unless there are legitimate deductions for damages beyond normal wear and tear or unpaid rent.
+LEGAL DEMAND
+Under ${data.state} state law, specifically ${data.law.code}, a landlord must refund the full security deposit, or provide a written, itemized statement of lawful deductions, within ${data.law.days} ${typeof data.law.days === 'number' && data.law.days === 1 ? 'day' : 'days'} after the tenant delivers possession. Failure to comply may entitle a tenant to recover damages, court costs and reasonable attorney fees.
 
 ${daysInfo.isPastDue 
-  ? `As of this date, ${daysInfo.daysCount} days have passed since the statutory deadline, and I have not received my security deposit or any written explanation of deductions as required by law.`
-  : `As of this date, ${daysInfo.description}.`
+  ? `As of today, the statutory deadline of ${formattedStatutoryDeadline} has passed. I have received neither payment nor any written explanation of deductions.`
+  : `The statutory deadline is ${formattedStatutoryDeadline}.`
 }
 
-DEMAND FOR PAYMENT:
-I hereby demand the immediate return of my full security deposit in the amount of $${data.depositAmount}. Failure to return this deposit may result in my pursuing all available legal remedies, including but not limited to:
+DEMAND FOR PAYMENT
+Please remit the full deposit of $${formattedAmount} no later than ${formattedDeadline} (10 calendar days from receipt of this letter). Payment options:
 
-1. Filing a lawsuit in small claims court
-2. Seeking damages up to three times the deposit amount as provided by ${data.state} law
-3. Recovery of attorney fees and court costs
-4. Any other relief deemed proper by the court
+• Check mailed to my forwarding address above, or
+• Electronic transfer (ACH/Zelle); email me to obtain routing details.
 
-DEADLINE FOR RESPONSE:
-Please remit payment of $${data.depositAmount} within ten (10) days of receipt of this letter, no later than ${formattedDeadline}. Payment should be sent to my current address or via electronic transfer.
+CONSEQUENCES OF NON-COMPLIANCE
+If you fail to comply by the stated deadline, I will immediately pursue all remedies available, including:
 
-If you believe you have legitimate grounds for withholding any portion of the deposit, please provide a detailed written explanation with supporting documentation as required by ${data.law.code}.
+• Filing suit in small-claims court;
+• Seeking damages up to three times the deposit amount as provided by ${data.state} law;
+• Recovering court costs and attorney fees; and
+• Any additional relief the court deems appropriate.
 
-I trust this matter can be resolved promptly without the need for legal action. However, I am prepared to pursue all available remedies to recover my deposit if necessary.
+DOCUMENTATION
+Should you contend that any portion of the deposit is lawfully withheld, you must—by the same deadline—provide a detailed, written itemization of each deduction with supporting documentation, as expressly required by ${data.law.code}.
 
-Please contact me at ${data.tenantEmail} to arrange return of my deposit or to discuss this matter further.
+I prefer to resolve this matter amicably. Your prompt attention will avoid unnecessary legal action.
+
+Please confirm receipt and advise of your payment method at ${data.tenantEmail}.
+
+Thank you for your immediate cooperation.
 
 Sincerely,
 
 
-${data.tenantName}
-Email: ${data.tenantEmail}`
+
+${data.tenantName}`
 }
 
 // 强硬语气模板（用于超期情况）

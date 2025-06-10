@@ -94,43 +94,49 @@ LEGAL REQUIREMENTS:
 - Statutory deadline: ${law.days} days
 
 REQUIRED LETTER FORMAT:
-1. Start with current date
-2. Landlord name and address
-3. RE: DEMAND FOR RETURN OF SECURITY DEPOSIT with property address and tenant name
-4. "Dear Landlord," salutation
-5. Opening paragraph: "I am writing to formally demand the immediate return of my security deposit in the amount of $${depositAmount} for the above-referenced rental property."
+1. Start with tenant name and placeholder address:
+   [Your Name]
+   [Your Address Line 1]
+   [City, State ZIP]
+   [Phone Number]
+   [Email Address]
 
-6. FACTUAL BACKGROUND section stating:
-   - Date deposit was paid (${depositDate})
-   - Deposit amount ($${depositAmount})
-   - Property address (${rentalAddress})
-   - Move-out date (${moveOutDate})
-   - Condition of property upon move-out
+2. Add "Sent via Certified Mail, Return Receipt Requested"
 
-7. LEGAL DEMAND section referencing:
-   - State law (${state} state law)
-   - Specific statute (${law.code})
-   - Statutory deadline (${law.days} days)
-   - Current status regarding deadline
+3. Current date
 
-8. DEMAND FOR PAYMENT section with:
-   - Clear demand for full deposit return
-   - List of legal remedies including:
-     * Filing lawsuit in small claims court
-     * Seeking damages up to three times the deposit amount
-     * Recovery of attorney fees and court costs
-     * Other relief deemed proper by the court
+4. Landlord name and address
 
-9. DEADLINE FOR RESPONSE section with:
-   - 10-day deadline for response
-   - Payment instructions
-   - Documentation requirements if deductions claimed
+5. "Re: Demand for Return of Security Deposit" with:
+   - Rental Property: [address]
+   - Amount in Dispute: $[amount with .00]
 
-10. Closing paragraph about preferring amicable resolution but being prepared for legal action
-11. Contact information (${tenantEmail})
-12. "Sincerely," closing with tenant name and email
+6. "Dear [Landlord Surname],"
 
-Make the letter legally sound, professional, and appropriate for ${state} jurisdiction. Use formal business letter format without "cc: File Copy" line.`
+7. FACTUAL BACKGROUND section stating deposit payment, move-out date, and condition
+
+8. LEGAL DEMAND section with:
+   - Specific state statute reference (${law.code})
+   - ${law.days} days requirement
+   - Consequences for non-compliance
+
+9. DEMAND FOR PAYMENT section with:
+   - 10 calendar days deadline
+   - Payment options (check or electronic transfer)
+
+10. CONSEQUENCES OF NON-COMPLIANCE section with bullet points:
+    - Filing suit in small-claims court
+    - Seeking damages up to three times deposit amount
+    - Recovering court costs and attorney fees
+    - Additional relief
+
+11. DOCUMENTATION section about itemization requirements
+
+12. Closing paragraphs about amicable resolution and contact information
+
+13. "Sincerely," with signature space and tenant name
+
+Format the deposit amount as $${parseFloat(depositAmount).toFixed(2)}. Make the letter legally sound and appropriate for ${state} jurisdiction.`
 
     // Option 1: Use OpenAI API (uncomment and add your API key)
     if (process.env.OPENAI_API_KEY) {
@@ -251,46 +257,71 @@ function generateMockLetter({
     day: "numeric",
   })
 
-  return `${currentDate}
+  // 计算法定截止日期
+  const moveOut = new Date(moveOutDate)
+  const statutoryDeadline = new Date(moveOut)
+  const daysNum = typeof law.days === 'string' ? 14 : law.days
+  statutoryDeadline.setDate(statutoryDeadline.getDate() + daysNum)
+  const formattedStatutoryDeadline = statutoryDeadline.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+
+  const formattedAmount = parseFloat(depositAmount).toFixed(2)
+
+  return `${tenantName}
+[Your Address Line 1]
+[City, State ZIP]
+[Phone Number]
+${tenantEmail}
+
+Sent via Certified Mail, Return Receipt Requested
+
+${currentDate}
 
 ${landlordInfo}
 
-RE: DEMAND FOR RETURN OF SECURITY DEPOSIT
-Property Address: ${rentalAddress}
-Tenant: ${tenantName}
+Re: Demand for Return of Security Deposit
+Rental Property: ${rentalAddress}
+Amount in Dispute: $${formattedAmount}
 
 Dear Landlord,
 
-I am writing to formally demand the immediate return of my security deposit in the amount of $${depositAmount} for the above-referenced rental property.
+FACTUAL BACKGROUND
+On ${depositDate}, I paid a security deposit of $${formattedAmount} for the above-referenced property. I returned possession—including keys—on ${moveOutDate}. The premises were left in good condition, normal wear and tear excepted.
 
-FACTUAL BACKGROUND:
-On ${depositDate}, I paid a security deposit of $${depositAmount} for the rental property located at ${rentalAddress}. I vacated the premises on ${moveOutDate}, leaving the property in good condition, normal wear and tear excepted.
+LEGAL DEMAND
+Under ${state} state law, specifically ${law.code}, a landlord must refund the full security deposit, or provide a written, itemized statement of lawful deductions, within ${law.days} ${typeof law.days === 'number' && law.days === 1 ? 'day' : 'days'} after the tenant delivers possession. Failure to comply may entitle a tenant to recover damages, court costs and reasonable attorney fees.
 
-LEGAL DEMAND:
-Under ${state} state law, specifically ${law.code}, landlords are required to return security deposits within ${law.days} days of tenant move-out, unless there are legitimate deductions for damages beyond normal wear and tear or unpaid rent.
+As of today, the statutory deadline of ${formattedStatutoryDeadline} has passed. I have received neither payment nor any written explanation of deductions.
 
-As of this date, ${law.days} days have passed since my move-out date, and I have not received my security deposit or any written explanation of deductions as required by law.
+DEMAND FOR PAYMENT
+Please remit the full deposit of $${formattedAmount} no later than ${formattedDeadline} (10 calendar days from receipt of this letter). Payment options:
 
-DEMAND FOR PAYMENT:
-I hereby demand the immediate return of my full security deposit in the amount of $${depositAmount}. Failure to return this deposit may result in my pursuing all available legal remedies, including but not limited to:
+• Check mailed to my forwarding address above, or
+• Electronic transfer (ACH/Zelle); email me to obtain routing details.
 
-1. Filing a lawsuit in small claims court
-2. Seeking damages up to three times the deposit amount as provided by ${state} law
-3. Recovery of attorney fees and court costs
-4. Any other relief deemed proper by the court
+CONSEQUENCES OF NON-COMPLIANCE
+If you fail to comply by the stated deadline, I will immediately pursue all remedies available, including:
 
-DEADLINE FOR RESPONSE:
-Please remit payment of $${depositAmount} within ten (10) days of receipt of this letter, no later than ${formattedDeadline}. Payment should be sent to my current address or via electronic transfer.
+• Filing suit in small-claims court;
+• Seeking damages up to three times the deposit amount as provided by ${state} law;
+• Recovering court costs and attorney fees; and
+• Any additional relief the court deems appropriate.
 
-If you believe you have legitimate grounds for withholding any portion of the deposit, please provide a detailed written explanation with supporting documentation as required by ${law.code}.
+DOCUMENTATION
+Should you contend that any portion of the deposit is lawfully withheld, you must—by the same deadline—provide a detailed, written itemization of each deduction with supporting documentation, as expressly required by ${law.code}.
 
-I trust this matter can be resolved promptly without the need for legal action. However, I am prepared to pursue all available remedies to recover my deposit if necessary.
+I prefer to resolve this matter amicably. Your prompt attention will avoid unnecessary legal action.
 
-Please contact me at ${tenantEmail} to arrange return of my deposit or to discuss this matter further.
+Please confirm receipt and advise of your payment method at ${tenantEmail}.
+
+Thank you for your immediate cooperation.
 
 Sincerely,
 
 
-${tenantName}
-Email: ${tenantEmail}`
+
+${tenantName}`
 }
