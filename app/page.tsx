@@ -837,43 +837,6 @@ export default function DepositClaimPage() {
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center">
             <div className="text-gray-500">Loading...</div>
           </div>
-        ) : !user ? (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 text-center">
-            <div className="text-gray-500">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Sign in Required</h2>
-              <p className="text-gray-600 max-w-md mx-auto">
-                You need to create an account and sign in before you can generate legal demand letters. 
-                This helps us provide you with personalized service and keep track of your letters.
-              </p>
-            </div>
-            
-            <div className="space-y-4 mt-4">
-              <div className="flex items-center justify-center gap-4">
-                <div className="flex items-center gap-2 text-green-600">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm">Free to use</span>
-                </div>
-                <div className="flex items-center gap-2 text-green-600">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm">Secure & private</span>
-                </div>
-                <div className="flex items-center gap-2 text-green-600">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm">State-specific</span>
-                </div>
-              </div>
-              
-              <p className="text-sm text-gray-500 mt-4">
-                Click "Sign up" in the top navigation to get started in less than a minute.
-              </p>
-            </div>
-          </div>
         ) : (
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
             <Tabs defaultValue="form" value={activeTab} onValueChange={(value) => {
