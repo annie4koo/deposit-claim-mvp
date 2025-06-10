@@ -95,7 +95,8 @@ ${landlordInfo}
 LEGAL REQUIREMENTS:
 - State: ${state}
 - Applicable law: ${law.code}
-- Statutory deadline: ${law.days} days
+- Statutory deadline: ${law.days} ${law.daysType === 'business' ? 'business days' : 'calendar days'}
+- Penalty multiplier: ${law.penaltyMultiplier || 3}x
 
 REQUIRED LETTER FORMAT:
 1. Start with tenant's actual forwarding address:
@@ -117,7 +118,7 @@ ${forwardingAddress}
 
 8. LEGAL DEMAND section with:
    - Specific state statute reference (${law.code})
-   - ${law.days} days requirement
+   - ${law.days} ${law.daysType === 'business' ? 'business days' : 'calendar days'} requirement
    - Consequences for non-compliance
 
 9. DEMAND FOR PAYMENT section with:
@@ -126,7 +127,7 @@ ${forwardingAddress}
 
 10. CONSEQUENCES OF NON-COMPLIANCE section with bullet points:
     - Filing suit in small-claims court
-    - Seeking damages up to three times deposit amount
+    - Seeking damages up to ${law.penaltyMultiplier || 3} times the deposit amount ($${(parseFloat(depositAmount) * (law.penaltyMultiplier || 3)).toFixed(2)})
     - Recovering court costs and attorney fees
     - Additional relief
 
@@ -136,7 +137,9 @@ ${forwardingAddress}
 
 13. "Sincerely," with signature space and tenant name
 
-Format the deposit amount as $${parseFloat(depositAmount).toFixed(2)}. Make the letter legally sound and appropriate for ${state} jurisdiction.`
+14. Add footer: "Sent via Certified Mail No. _____ (Return Receipt Requested)"
+
+Format the deposit amount as $${parseFloat(depositAmount).toFixed(2)}. Use accurate ${state} law details: ${law.days} ${law.daysType === 'business' ? 'business days' : 'calendar days'} and ${law.penaltyMultiplier || 3}x penalty multiplier. Make the letter legally sound and appropriate for ${state} jurisdiction.`
 
     // Option 1: Use OpenAI API (uncomment and add your API key)
     if (process.env.OPENAI_API_KEY) {
@@ -243,7 +246,7 @@ function generateMockLetter({
   tenantEmail,
   forwardingAddress,
   law,
-}: RequestBody & { law: { code: string; days: number | string } }) {
+}: RequestBody & { law: { code: string; days: number | string; daysType?: string; penaltyMultiplier?: number } }) {
   const currentDate = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -270,6 +273,11 @@ function generateMockLetter({
   })
 
   const formattedAmount = parseFloat(depositAmount).toFixed(2)
+  const penaltyMultiplier = law.penaltyMultiplier || 3
+  const penaltyAmount = (parseFloat(depositAmount) * penaltyMultiplier).toFixed(2)
+  const daysType = law.daysType === 'business' ? 'business days' : 'calendar days'
+  const dayLabel = typeof law.days === 'number' && law.days === 1 ? 
+    (law.daysType === 'business' ? 'business day' : 'calendar day') : daysType
 
   return `${forwardingAddress}
 
@@ -289,7 +297,7 @@ FACTUAL BACKGROUND
 On ${depositDate}, I paid a security deposit of $${formattedAmount} for the above-referenced property. I returned possession—including keys—on ${moveOutDate}. The premises were left in good condition, normal wear and tear excepted.
 
 LEGAL DEMAND
-Under ${state} state law, specifically ${law.code}, a landlord must refund the full security deposit, or provide a written, itemized statement of lawful deductions, within ${law.days} ${typeof law.days === 'number' && law.days === 1 ? 'day' : 'days'} after the tenant delivers possession. Failure to comply may entitle a tenant to recover damages, court costs and reasonable attorney fees.
+Under ${state} state law, specifically ${law.code}, a landlord must refund the full security deposit, or provide a written, itemized statement of lawful deductions, within ${law.days} ${dayLabel} after the tenant delivers possession. Failure to comply may entitle a tenant to recover damages, court costs and reasonable attorney fees.
 
 As of today, the statutory deadline of ${formattedStatutoryDeadline} has passed. I have received neither payment nor any written explanation of deductions.
 
@@ -303,7 +311,7 @@ CONSEQUENCES OF NON-COMPLIANCE
 If you fail to comply by the stated deadline, I will immediately pursue all remedies available, including:
 
 • Filing suit in small-claims court;
-• Seeking damages up to three times the deposit amount as provided by ${state} law;
+• Seeking damages up to ${penaltyMultiplier} times the deposit amount ($${penaltyAmount}) as provided by ${state} law;
 • Recovering court costs and attorney fees; and
 • Any additional relief the court deems appropriate.
 
@@ -320,5 +328,7 @@ Sincerely,
 
 
 
-${tenantName}`
+${tenantName}
+
+Sent via Certified Mail No. _____ (Return Receipt Requested)`
 }

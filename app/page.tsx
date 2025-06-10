@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Navbar } from "@/components/navbar"
 import { stateLaw } from "@/lib/stateLaw"
+import { LetterToolbar } from "@/components/LetterToolbar"
 
 const US_STATES = [
   { code: "AL", name: "Alabama" },
@@ -103,19 +104,39 @@ export default function DepositClaimPage() {
   const [apiError, setApiError] = useState<string>("")
   const [copySuccess, setCopySuccess] = useState(false)
 
-  // Simple event tracking function (ready for GA/PostHog integration)
+  // Enhanced event tracking function (ready for GA/PostHog integration)
   const trackEvent = (eventName: string, properties?: Record<string, any>) => {
     // Console log for now - can be replaced with actual analytics
-    console.log('Event:', eventName, properties)
+    console.log('🔍 Analytics Event:', eventName, properties)
     
-    // Ready for Google Analytics
+    // Enhanced data for conversion funnel analysis
+    const enhancedProperties: Record<string, any> = {
+      ...properties,
+      timestamp: new Date().toISOString(),
+      session_id: typeof window !== 'undefined' ? sessionStorage.getItem('session_id') || 'anonymous' : 'ssr',
+      user_agent: typeof window !== 'undefined' ? navigator.userAgent : 'unknown',
+      page_url: typeof window !== 'undefined' ? window.location.href : 'unknown'
+    }
+    
+    // Ready for Google Analytics 4
     if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', eventName, properties)
+      (window as any).gtag('event', eventName, {
+        custom_parameter_1: enhancedProperties.state,
+        custom_parameter_2: enhancedProperties.deposit_amount,
+        event_category: 'deposit_recovery',
+        event_label: enhancedProperties.state || 'unknown',
+        value: enhancedProperties.deposit_amount ? parseFloat(enhancedProperties.deposit_amount) : 0
+      })
     }
     
     // Ready for PostHog
     if (typeof window !== 'undefined' && (window as any).posthog) {
-      (window as any).posthog.capture(eventName, properties)
+      (window as any).posthog.capture(eventName, enhancedProperties)
+    }
+    
+    // Ready for Facebook Pixel
+    if (typeof window !== 'undefined' && (window as any).fbq) {
+      (window as any).fbq('track', eventName, enhancedProperties)
     }
   }
 
@@ -495,8 +516,11 @@ export default function DepositClaimPage() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
+    // 必填字段验证
     if (!formData.tenantName.trim()) {
       newErrors.tenantName = "Your name is required"
+    } else if (formData.tenantName.trim().length < 2) {
+      newErrors.tenantName = "Name must be at least 2 characters"
     }
 
     if (!formData.state) {
@@ -505,23 +529,36 @@ export default function DepositClaimPage() {
 
     if (!formData.rentalAddress.trim()) {
       newErrors.rentalAddress = "Rental address is required"
+    } else if (formData.rentalAddress.trim().length < 10) {
+      newErrors.rentalAddress = "Please enter a complete address"
     }
 
-    if (!formData.depositAmount || Number.parseFloat(formData.depositAmount) <= 0) {
-      newErrors.depositAmount = "Deposit amount must be greater than 0"
+    // 金额验证：必须>0
+    if (!formData.depositAmount.trim()) {
+      newErrors.depositAmount = "Deposit amount is required"
+    } else {
+      const amount = Number.parseFloat(formData.depositAmount)
+      if (isNaN(amount) || amount <= 0) {
+        newErrors.depositAmount = "Deposit amount must be greater than 0"
+      }
     }
 
-    if (!formData.depositDate) {
+    // 日期格式验证
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/
+    if (!formData.depositDate.trim()) {
       newErrors.depositDate = "Deposit payment date is required"
+    } else if (!dateRegex.test(formData.depositDate)) {
+      newErrors.depositDate = "Date must be in MM/DD/YYYY format"
     }
 
-    if (!formData.moveOutDate) {
+    if (!formData.moveOutDate.trim()) {
       newErrors.moveOutDate = "Move-out date is required"
+    } else if (!dateRegex.test(formData.moveOutDate)) {
+      newErrors.moveOutDate = "Date must be in MM/DD/YYYY format"
     }
 
-    // 改进的日期验证逻辑
-    if (formData.depositDate && formData.moveOutDate) {
-      // 解析MM/DD/YYYY格式的日期
+    // 日期顺序验证：moveOut >= depositDate
+    if (formData.depositDate && formData.moveOutDate && dateRegex.test(formData.depositDate) && dateRegex.test(formData.moveOutDate)) {
       const parseDate = (dateStr: string) => {
         const [month, day, year] = dateStr.split('/')
         if (month && day && year) {
@@ -535,22 +572,18 @@ export default function DepositClaimPage() {
       
       if (depositDate && moveOutDate) {
         if (moveOutDate < depositDate) {
-          newErrors.moveOutDate = "Move-out date must be after deposit payment date"
-        }
-      } else {
-        if (!depositDate && formData.depositDate) {
-          newErrors.depositDate = "Please enter a valid date (MM/DD/YYYY)"
-        }
-        if (!moveOutDate && formData.moveOutDate) {
-          newErrors.moveOutDate = "Please enter a valid date (MM/DD/YYYY)"
+          newErrors.moveOutDate = "Move-out date must be on or after deposit payment date"
         }
       }
     }
 
     if (!formData.landlordInfo.trim()) {
-      newErrors.landlordInfo = "Landlord name and address is required"
+      newErrors.landlordInfo = "Landlord information is required"
+    } else if (formData.landlordInfo.trim().length < 10) {
+      newErrors.landlordInfo = "Please provide complete landlord name and address"
     }
 
+    // Email格式验证
     if (!formData.tenantEmail.trim()) {
       newErrors.tenantEmail = "Email address is required"
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.tenantEmail)) {
@@ -558,7 +591,9 @@ export default function DepositClaimPage() {
     }
 
     if (!formData.forwardingAddress.trim()) {
-      newErrors.forwardingAddress = "Your current address is required for legal compliance"
+      newErrors.forwardingAddress = "Current address is required for legal compliance"
+    } else if (formData.forwardingAddress.trim().length < 10) {
+      newErrors.forwardingAddress = "Please provide a complete forwarding address"
     }
 
     setErrors(newErrors)
@@ -574,6 +609,19 @@ export default function DepositClaimPage() {
     if (apiError) {
       setApiError("")
     }
+    
+    // Track form progress for conversion optimization
+    const completedFields = Object.values({...formData, [field]: value}).filter(v => v.trim() !== '').length
+    const totalFields = Object.keys(formData).length
+    const progressPercentage = Math.round((completedFields / totalFields) * 100)
+    
+    trackEvent('form_field_completed', {
+      field,
+      progress_percentage: progressPercentage,
+      completed_fields: completedFields,
+      total_fields: totalFields,
+      state: formData.state || value // 如果是state字段，使用新值
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -707,6 +755,19 @@ export default function DepositClaimPage() {
     })
   }
 
+  // 检查表单是否完整（所有字段都有值）
+  const isFormComplete = useMemo(() => {
+    return formData.tenantName.trim() !== '' &&
+           formData.state !== '' &&
+           formData.rentalAddress.trim() !== '' &&
+           formData.depositAmount.trim() !== '' &&
+           formData.depositDate.trim() !== '' &&
+           formData.moveOutDate.trim() !== '' &&
+           formData.landlordInfo.trim() !== '' &&
+           formData.tenantEmail.trim() !== '' &&
+           formData.forwardingAddress.trim() !== ''
+  }, [formData])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -720,21 +781,29 @@ export default function DepositClaimPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <Tabs defaultValue="form" value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="border-b border-gray-200">
-              <TabsList className="h-14 w-full bg-white rounded-none border-b border-gray-200 px-6">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+          <Tabs defaultValue="form" value={activeTab} onValueChange={(value) => {
+            setActiveTab(value)
+            trackEvent('tab_switched', {
+              from_tab: activeTab,
+              to_tab: value,
+              has_generated_letter: !!generatedLetter,
+              form_completion: Math.round((Object.values(formData).filter(v => v.trim() !== '').length / Object.keys(formData).length) * 100)
+            })
+          }} className="w-full">
+            <div className="border-b border-gray-200 bg-gray-50">
+              <TabsList className="h-14 w-full bg-transparent rounded-none border-b border-gray-200 px-6">
                 <TabsTrigger
                   value="form"
-                  className="data-[state=active]:border-teal-600 data-[state=active]:text-teal-600 rounded-none border-b-2 border-transparent px-4"
+                  className="data-[state=active]:border-green-600 data-[state=active]:text-green-600 data-[state=active]:bg-white rounded-t-lg border-b-2 border-transparent px-6"
                 >
-                  Form
+                  📝 Form
                 </TabsTrigger>
                 <TabsTrigger
                   value="letter"
-                  className="data-[state=active]:border-teal-600 data-[state=active]:text-teal-600 rounded-none border-b-2 border-transparent px-4"
+                  className="data-[state=active]:border-green-600 data-[state=active]:text-green-600 data-[state=active]:bg-white rounded-t-lg border-b-2 border-transparent px-6"
                 >
-                  Generated Letter
+                  📄 Generated Letter
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -891,8 +960,17 @@ export default function DepositClaimPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="forwardingAddress" className="text-gray-700">
+                    <Label htmlFor="forwardingAddress" className="text-gray-700 flex items-center gap-2">
                       Your Current Address (Forwarding Address) *
+                      <div className="relative group">
+                        <svg className="h-4 w-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-64">
+                          💡 Important: Send your letter via Certified Mail with Return Receipt Requested to prove delivery. Keep the receipt as legal evidence.
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
                     </Label>
                     <Textarea
                       id="forwardingAddress"
@@ -925,20 +1003,20 @@ export default function DepositClaimPage() {
 
                   <Button
                     type="submit"
-                    className="w-full h-14 text-lg bg-teal-600 hover:bg-teal-700 hidden md:block"
-                    disabled={isLoading}
+                    className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 hidden md:block disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
                   >
                     {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
                   </Button>
                 </form>
 
-                {/* Fixed bottom CTA for mobile */}
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-50">
+                {/* Fixed bottom CTA for mobile - Green theme */}
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 md:hidden z-50 shadow-lg">
                   <Button
                     type="button"
                     onClick={handleSubmit}
-                    className="w-full h-12 text-lg bg-teal-600 hover:bg-teal-700"
-                    disabled={isLoading}
+                    className="w-full h-12 text-lg bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
+                    disabled={isLoading || !isFormComplete || Object.keys(errors).length > 0}
                   >
                     {isLoading ? "Generating Letter..." : "Generate Legal Demand Letter"}
                   </Button>
@@ -970,10 +1048,10 @@ export default function DepositClaimPage() {
               <div className="bg-gray-50 rounded-lg p-6 border border-gray-100 shadow-sm">
                 {generatedLetter ? (
                   <div className="space-y-4">
-                    {/* Enhanced success status bar */}
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    {/* Enhanced success alert with statutory deadline */}
+                    <div className="bg-green-100 border-l-4 border-green-500 rounded-lg p-4 shadow-sm">
                       <div className="flex items-start gap-3">
-                        <div className="bg-green-100 rounded-full p-1 flex-shrink-0 mt-0.5">
+                        <div className="bg-green-500 rounded-full p-1.5 flex-shrink-0 mt-0.5">
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="16"
@@ -984,50 +1062,76 @@ export default function DepositClaimPage() {
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            className="text-green-600"
+                            className="text-white"
                           >
                             <path d="M20 6L9 17l-5-5"></path>
                           </svg>
                         </div>
                         <div className="flex-1">
-                          <p className="text-green-800 font-medium text-sm mb-1">
-                            Letter generated successfully
-                          </p>
+                          <h3 className="text-green-800 font-bold text-base mb-2">
+                            ✅ Letter Generated Successfully!
+                          </h3>
                           {formData.state && formData.moveOutDate && (
-                            <p className="text-green-700 text-sm">
-                              Statute deadline: {calculateStatutoryDeadline(formData.state, formData.moveOutDate)}
-                            </p>
+                            <div className="bg-white rounded-md p-3 border border-green-200">
+                              <p className="text-green-700 font-medium text-sm mb-1">
+                                📅 Statutory Deadline Information:
+                              </p>
+                              <p className="text-green-800 font-semibold">
+                                {calculateStatutoryDeadline(formData.state, formData.moveOutDate)}
+                              </p>
+                              <p className="text-green-600 text-xs mt-1">
+                                Your landlord had until this date to return your deposit or provide itemized deductions.
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                      <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Generated Letter</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={copyToClipboard}
-                            className={`text-sm text-teal-600 hover:text-teal-700 ${copySuccess ? 'text-green-600' : ''}`}
-                          >
-                            {copySuccess ? 'Copied!' : 'Copy to clipboard'}
-                          </button>
-                          <button
-                            onClick={downloadLetter}
-                            className="text-sm text-teal-600 hover:text-teal-700"
-                          >
-                            Download
-                          </button>
-                        </div>
+                    {/* Letter Toolbar */}
+                    <LetterToolbar 
+                      letter={generatedLetter}
+                      tenantName={formData.tenantName}
+                      onCopy={() => {
+                        setCopySuccess(true)
+                        setTimeout(() => setCopySuccess(false), 2000)
+                        trackEvent('letter_copied', {
+                          state: formData.state,
+                          method: 'toolbar'
+                        })
+                      }}
+                      onDownload={() => {
+                        trackEvent('letter_downloaded', {
+                          state: formData.state,
+                          method: 'toolbar'
+                        })
+                      }}
+                    />
+
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
+                      {/* Header bar with gradient */}
+                      <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-4 py-3">
+                        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          📄 Your Legal Demand Letter
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Ready to Send</span>
+                        </h3>
                       </div>
                       <Textarea
                         id="letter"
                         value={generatedLetter}
                         readOnly
                         rows={20}
-                        className="font-mono text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="font-mono text-sm border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-gray-50"
                       />
                     </div>
+
+                    {copySuccess && (
+                      <div className="text-center">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                          ✓ Copied to clipboard!
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex justify-center">
                       <Button

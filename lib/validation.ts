@@ -2,40 +2,90 @@ import { z } from "zod"
 
 // 表单数据验证模式
 export const depositClaimSchema = z.object({
-  tenantName: z.string().min(2, "Name must be at least 2 characters").max(100, "Name cannot exceed 100 characters"),
-  state: z.string().length(2, "Please select a valid state"),
-  rentalAddress: z.string().min(10, "Please enter complete rental address").max(200, "Address cannot exceed 200 characters"),
-  depositAmount: z.string().refine((val) => {
-    const num = parseFloat(val)
-    return !isNaN(num) && num > 0 && num <= 100000
-  }, "Deposit amount must be a valid number between 0 and 100,000"),
-  depositDate: z.string().refine((date) => {
-    const dateObj = new Date(date)
-    const now = new Date()
-    const fiveYearsAgo = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate())
-    return dateObj >= fiveYearsAgo && dateObj <= now
-  }, "Deposit payment date should be within the past five years"),
-  moveOutDate: z.string().refine((date) => {
-    const dateObj = new Date(date)
-    const now = new Date()
-    const fiveYearsAgo = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate())
-    return dateObj >= fiveYearsAgo && dateObj <= now
-  }, "Move-out date should be within the past five years"),
-  landlordInfo: z.string().min(15, "Please provide complete landlord name and address").max(500, "Landlord information cannot exceed 500 characters"),
-  tenantEmail: z.string().email("Please enter a valid email address")
+  tenantName: z.string()
+    .min(1, "Your name is required")
+    .min(2, "Name must be at least 2 characters"),
+  
+  state: z.string()
+    .min(1, "State is required"),
+  
+  rentalAddress: z.string()
+    .min(1, "Rental address is required")
+    .min(10, "Please enter a complete address"),
+  
+  depositAmount: z.string()
+    .min(1, "Deposit amount is required")
+    .refine((val) => {
+      const num = parseFloat(val)
+      return !isNaN(num) && num > 0
+    }, "Deposit amount must be greater than 0"),
+  
+  depositDate: z.string()
+    .min(1, "Deposit payment date is required")
+    .regex(/^\d{2}\/\d{2}\/\d{4}$/, "Date must be in MM/DD/YYYY format"),
+  
+  moveOutDate: z.string()
+    .min(1, "Move-out date is required")
+    .regex(/^\d{2}\/\d{2}\/\d{4}$/, "Date must be in MM/DD/YYYY format"),
+  
+  landlordInfo: z.string()
+    .min(1, "Landlord information is required")
+    .min(10, "Please provide complete landlord name and address"),
+  
+  tenantEmail: z.string()
+    .min(1, "Email address is required")
+    .email("Please enter a valid email address"),
+  
+  forwardingAddress: z.string()
+    .min(1, "Current address is required for legal compliance")
+    .min(10, "Please provide a complete forwarding address"),
+}).refine((data) => {
+  // 验证日期顺序：moveOutDate 必须 >= depositDate
+  const depositDate = parseDate(data.depositDate)
+  const moveOutDate = parseDate(data.moveOutDate)
+  
+  if (!depositDate || !moveOutDate) {
+    return false // 日期格式无效
+  }
+  
+  return moveOutDate >= depositDate
+}, {
+  message: "Move-out date must be on or after deposit payment date",
+  path: ["moveOutDate"]
 })
 
-// 交叉验证：搬出日期应晚于押金支付日期
-export const validateDateOrder = (data: any) => {
-  const depositDate = new Date(data.depositDate)
-  const moveOutDate = new Date(data.moveOutDate)
+// 日期解析辅助函数
+function parseDate(dateStr: string): Date | null {
+  const [month, day, year] = dateStr.split('/')
+  if (!month || !day || !year) return null
   
-  if (moveOutDate <= depositDate) {
-    return {
-      success: false,
-      error: "Move-out date must be after deposit payment date"
-    }
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+  
+  // 验证日期是否有效
+  if (isNaN(date.getTime())) return null
+  if (date.getFullYear() != parseInt(year)) return null
+  if (date.getMonth() != parseInt(month) - 1) return null
+  if (date.getDate() != parseInt(day)) return null
+  
+  return date
+}
+
+export function validateDateOrder(data: { depositDate: string; moveOutDate: string }) {
+  const depositDate = parseDate(data.depositDate)
+  const moveOutDate = parseDate(data.moveOutDate)
+  
+  if (!depositDate) {
+    return { success: false, error: "Invalid deposit date format. Please use MM/DD/YYYY." }
   }
+  
+  if (!moveOutDate) {
+    return { success: false, error: "Invalid move-out date format. Please use MM/DD/YYYY." }
+  }
+  
+  if (moveOutDate < depositDate) {
+    return { success: false, error: "Move-out date cannot be before deposit payment date." }
+  }
+  
   return { success: true }
 }
 
