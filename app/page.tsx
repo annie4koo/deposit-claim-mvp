@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Navbar } from "@/components/navbar"
 import { stateLaw } from "@/lib/stateLaw"
+import { calculateStatutoryDeadline } from "@/lib/stateLaw"
 import { LetterToolbar } from "@/components/LetterToolbar"
 
 const US_STATES = [
@@ -137,30 +138,6 @@ export default function DepositClaimPage() {
     // Ready for Facebook Pixel
     if (typeof window !== 'undefined' && (window as any).fbq) {
       (window as any).fbq('track', eventName, enhancedProperties)
-    }
-  }
-
-  // Calculate statutory deadline for display
-  const calculateStatutoryDeadline = (state: string, moveOutDate: string) => {
-    const law = (stateLaw as any)[state]
-    if (!law || !moveOutDate) return 'See letter for details'
-    
-    try {
-      const [month, day, year] = moveOutDate.split('/')
-      const moveOut = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-      const deadline = new Date(moveOut)
-      const daysNum = typeof law.days === 'string' ? 14 : law.days
-      deadline.setDate(deadline.getDate() + daysNum)
-      
-      const formattedDeadline = deadline.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric"
-      })
-      const daysType = law.daysType === 'business' ? 'business days' : 'calendar days'
-      return `${formattedDeadline} (${law.days} ${daysType})`
-    } catch {
-      return 'See letter for details'
     }
   }
 
@@ -1091,7 +1068,6 @@ export default function DepositClaimPage() {
                     {/* Letter Toolbar */}
                     <LetterToolbar 
                       letter={generatedLetter}
-                      tenantName={formData.tenantName}
                       onCopy={() => {
                         setCopySuccess(true)
                         setTimeout(() => setCopySuccess(false), 2000)

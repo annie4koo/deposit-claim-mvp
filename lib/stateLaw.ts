@@ -1,3 +1,49 @@
+// 计算business days的函数
+export function addBusinessDays(startDate: Date, businessDays: number): Date {
+  const result = new Date(startDate)
+  let addedDays = 0
+  
+  while (addedDays < businessDays) {
+    result.setDate(result.getDate() + 1)
+    // 跳过周末 (0=Sunday, 6=Saturday)
+    if (result.getDay() !== 0 && result.getDay() !== 6) {
+      addedDays++
+    }
+  }
+  
+  return result
+}
+
+// 计算法定截止日期
+export function calculateStatutoryDeadline(state: string, moveOutDate: string): string {
+  const law = stateLaw[state as StateCode]
+  if (!law || !moveOutDate) return 'See letter for details'
+  
+  try {
+    const [month, day, year] = moveOutDate.split('/')
+    const moveOut = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+    
+    let deadline: Date
+    if (law.daysType === 'business') {
+      deadline = addBusinessDays(moveOut, law.days)
+    } else {
+      deadline = new Date(moveOut)
+      deadline.setDate(deadline.getDate() + law.days)
+    }
+    
+    const formattedDeadline = deadline.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    })
+    
+    const daysType = law.daysType === 'business' ? 'business days' : 'calendar days'
+    return `${formattedDeadline} (${law.days} ${daysType})`
+  } catch {
+    return 'See letter for details'
+  }
+}
+
 export const stateLaw = {
   CA: { code: "Cal. Civ. Code §1950.5", days: 21, daysType: "calendar", penaltyMultiplier: 2 },
   NY: { code: "N.Y. Gen. Oblig. §7-103", days: 14, daysType: "calendar", penaltyMultiplier: 2 },
