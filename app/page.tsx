@@ -74,6 +74,7 @@ interface FormData {
   moveOutDate: string
   landlordInfo: string
   tenantEmail: string
+  forwardingAddress: string
 }
 
 interface FormErrors {
@@ -90,6 +91,7 @@ export default function DepositClaimPage() {
     moveOutDate: "",
     landlordInfo: "",
     tenantEmail: "",
+    forwardingAddress: "",
   })
 
   const [errors, setErrors] = useState<FormErrors>({})
@@ -98,6 +100,7 @@ export default function DepositClaimPage() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [activeTab, setActiveTab] = useState("form")
   const [apiError, setApiError] = useState<string>("")
+  const [copySuccess, setCopySuccess] = useState(false)
 
   // Native-style Date Picker Component - 原生风格的下拉日期选择器
   const NativeDatePicker = ({ 
@@ -475,11 +478,31 @@ export default function DepositClaimPage() {
       newErrors.moveOutDate = "Move-out date is required"
     }
 
+    // 改进的日期验证逻辑
     if (formData.depositDate && formData.moveOutDate) {
-      const depositDate = new Date(formData.depositDate)
-      const moveOutDate = new Date(formData.moveOutDate)
-      if (moveOutDate < depositDate) {
-        newErrors.moveOutDate = "Move-out date must be after deposit payment date"
+      // 解析MM/DD/YYYY格式的日期
+      const parseDate = (dateStr: string) => {
+        const [month, day, year] = dateStr.split('/')
+        if (month && day && year) {
+          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        }
+        return null
+      }
+
+      const depositDate = parseDate(formData.depositDate)
+      const moveOutDate = parseDate(formData.moveOutDate)
+      
+      if (depositDate && moveOutDate) {
+        if (moveOutDate < depositDate) {
+          newErrors.moveOutDate = "Move-out date must be after deposit payment date"
+        }
+      } else {
+        if (!depositDate && formData.depositDate) {
+          newErrors.depositDate = "Please enter a valid date (MM/DD/YYYY)"
+        }
+        if (!moveOutDate && formData.moveOutDate) {
+          newErrors.moveOutDate = "Please enter a valid date (MM/DD/YYYY)"
+        }
       }
     }
 
@@ -491,6 +514,10 @@ export default function DepositClaimPage() {
       newErrors.tenantEmail = "Email address is required"
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.tenantEmail)) {
       newErrors.tenantEmail = "Please enter a valid email address"
+    }
+
+    if (!formData.forwardingAddress.trim()) {
+      newErrors.forwardingAddress = "Your current address is required for legal compliance"
     }
 
     setErrors(newErrors)
@@ -570,6 +597,35 @@ export default function DepositClaimPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Copy to clipboard function
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedLetter)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000) // Hide after 2 seconds
+    } catch (err) {
+      // Fallback for older browsers
+      const textarea = document.getElementById("letter") as HTMLTextAreaElement
+      if (textarea) {
+        textarea.select()
+        document.execCommand("copy")
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+      }
+    }
+  }
+
+  // Download as text file
+  const downloadLetter = () => {
+    const element = document.createElement("a")
+    const file = new Blob([generatedLetter], { type: "text/plain" })
+    element.href = URL.createObjectURL(file)
+    element.download = `deposit-demand-letter-${formData.tenantName.replace(/\s+/g, "-").toLowerCase()}.txt`
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
   }
 
   return (
@@ -738,6 +794,24 @@ export default function DepositClaimPage() {
                 </div>
 
                 <div>
+                  <Label htmlFor="forwardingAddress" className="text-gray-700">
+                    Your Current Address (Forwarding Address) *
+                  </Label>
+                  <Textarea
+                    id="forwardingAddress"
+                    value={formData.forwardingAddress}
+                    onChange={(e) => handleInputChange("forwardingAddress", e.target.value)}
+                    className={`mt-1 ${errors.forwardingAddress ? "border-red-500" : "border-gray-300"}`}
+                    placeholder="Your Full Name&#10;123 Current Street&#10;City, State, ZIP&#10;Phone: (555) 123-4567"
+                    rows={4}
+                  />
+                  {errors.forwardingAddress && <p className="text-sm text-red-600 mt-1">{errors.forwardingAddress}</p>}
+                  <p className="text-xs text-gray-500 mt-1">
+                    This address will be used in the letter header and for receiving payment or correspondence.
+                  </p>
+                </div>
+
+                <div>
                   <Label htmlFor="tenantEmail" className="text-gray-700">
                     Your Email Address *
                   </Label>
@@ -807,18 +881,20 @@ export default function DepositClaimPage() {
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex justify-between items-center">
                       <span className="text-sm font-medium text-gray-700">Generated Letter</span>
-                      <button
-                        onClick={() => {
-                          const textarea = document.getElementById("letter") as HTMLTextAreaElement
-                          if (textarea) {
-                            textarea.select()
-                            document.execCommand("copy")
-                          }
-                        }}
-                        className="text-sm text-teal-600 hover:text-teal-700"
-                      >
-                        Copy to clipboard
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={copyToClipboard}
+                          className={`text-sm text-teal-600 hover:text-teal-700 ${copySuccess ? 'text-green-600' : ''}`}
+                        >
+                          {copySuccess ? 'Copied!' : 'Copy to clipboard'}
+                        </button>
+                        <button
+                          onClick={downloadLetter}
+                          className="text-sm text-teal-600 hover:text-teal-700"
+                        >
+                          Download
+                        </button>
+                      </div>
                     </div>
                     <Textarea
                       id="letter"

@@ -14,6 +14,7 @@ interface RequestBody {
   moveOutDate: string
   landlordInfo: string
   tenantEmail: string
+  forwardingAddress: string
   templateType?: 'standard' | 'firm' | 'friendly'
 }
 
@@ -54,6 +55,7 @@ export async function POST(req: NextRequest) {
       moveOutDate,
       landlordInfo,
       tenantEmail,
+      forwardingAddress,
       templateType,
     } = requestData
 
@@ -71,6 +73,7 @@ export async function POST(req: NextRequest) {
       moveOutDate,
       landlordInfo,
       tenantEmail,
+      forwardingAddress,
       law,
     }
 
@@ -80,6 +83,7 @@ Draft a professional, formal demand letter for security deposit return under ${s
 TENANT INFORMATION:
 - Name: ${tenantName}
 - Email: ${tenantEmail}
+- Current address: ${forwardingAddress}
 - Former rental address: ${rentalAddress}
 - Security deposit amount: $${depositAmount}
 - Deposit paid on: ${depositDate}
@@ -94,12 +98,8 @@ LEGAL REQUIREMENTS:
 - Statutory deadline: ${law.days} days
 
 REQUIRED LETTER FORMAT:
-1. Start with tenant name and placeholder address:
-   [Your Name]
-   [Your Address Line 1]
-   [City, State ZIP]
-   [Phone Number]
-   [Email Address]
+1. Start with tenant's actual forwarding address:
+${forwardingAddress}
 
 2. Add "Sent via Certified Mail, Return Receipt Requested"
 
@@ -111,7 +111,7 @@ REQUIRED LETTER FORMAT:
    - Rental Property: [address]
    - Amount in Dispute: $[amount with .00]
 
-6. "Dear [Landlord Surname],"
+6. "Dear Landlord,"
 
 7. FACTUAL BACKGROUND section stating deposit payment, move-out date, and condition
 
@@ -122,7 +122,7 @@ REQUIRED LETTER FORMAT:
 
 9. DEMAND FOR PAYMENT section with:
    - 10 calendar days deadline
-   - Payment options (check or electronic transfer)
+   - Payment options (check to forwarding address or electronic transfer)
 
 10. CONSEQUENCES OF NON-COMPLIANCE section with bullet points:
     - Filing suit in small-claims court
@@ -241,6 +241,7 @@ function generateMockLetter({
   moveOutDate,
   landlordInfo,
   tenantEmail,
+  forwardingAddress,
   law,
 }: RequestBody & { law: { code: string; days: number | string } }) {
   const currentDate = new Date().toLocaleDateString("en-US", {
@@ -270,11 +271,7 @@ function generateMockLetter({
 
   const formattedAmount = parseFloat(depositAmount).toFixed(2)
 
-  return `${tenantName}
-[Your Address Line 1]
-[City, State ZIP]
-[Phone Number]
-${tenantEmail}
+  return `${forwardingAddress}
 
 Sent via Certified Mail, Return Receipt Requested
 

@@ -7,7 +7,8 @@ interface LetterData {
   moveOutDate: string
   landlordInfo: string
   tenantEmail: string
-  law: { code: string; days: number | string }
+  forwardingAddress: string
+  law: { code: string; days: number | string; daysType?: string; penaltyMultiplier?: number }
 }
 
 // 计算法定期限是否已过
@@ -81,12 +82,17 @@ export function generateStandardTemplate(data: LetterData): string {
 
   // 格式化金额为两位小数
   const formattedAmount = parseFloat(data.depositAmount).toFixed(2)
+  
+  // 获取罚倍数，默认为3倍
+  const penaltyMultiplier = data.law.penaltyMultiplier || 3
+  const penaltyAmount = (parseFloat(data.depositAmount) * penaltyMultiplier).toFixed(2)
+  
+  // 获取日期类型描述
+  const daysType = data.law.daysType === 'business' ? 'business days' : 'calendar days'
+  const dayLabel = typeof data.law.days === 'number' && data.law.days === 1 ? 
+    (data.law.daysType === 'business' ? 'business day' : 'calendar day') : daysType
 
-  return `${data.tenantName}
-[Your Address Line 1]
-[City, State ZIP]
-[Phone Number]
-${data.tenantEmail}
+  return `${data.forwardingAddress}
 
 Sent via Certified Mail, Return Receipt Requested
 
@@ -104,7 +110,7 @@ FACTUAL BACKGROUND
 On ${data.depositDate}, I paid a security deposit of $${formattedAmount} for the above-referenced property. I returned possession—including keys—on ${data.moveOutDate}. The premises were left in good condition, normal wear and tear excepted.
 
 LEGAL DEMAND
-Under ${data.state} state law, specifically ${data.law.code}, a landlord must refund the full security deposit, or provide a written, itemized statement of lawful deductions, within ${data.law.days} ${typeof data.law.days === 'number' && data.law.days === 1 ? 'day' : 'days'} after the tenant delivers possession. Failure to comply may entitle a tenant to recover damages, court costs and reasonable attorney fees.
+Under ${data.state} state law, specifically ${data.law.code}, a landlord must refund the full security deposit, or provide a written, itemized statement of lawful deductions, within ${data.law.days} ${dayLabel} after the tenant delivers possession. Failure to comply may entitle a tenant to recover damages, court costs and reasonable attorney fees.
 
 ${daysInfo.isPastDue 
   ? `As of today, the statutory deadline of ${formattedStatutoryDeadline} has passed. I have received neither payment nor any written explanation of deductions.`
@@ -121,7 +127,7 @@ CONSEQUENCES OF NON-COMPLIANCE
 If you fail to comply by the stated deadline, I will immediately pursue all remedies available, including:
 
 • Filing suit in small-claims court;
-• Seeking damages up to three times the deposit amount as provided by ${data.state} law;
+• Seeking damages up to ${penaltyMultiplier === Math.floor(penaltyMultiplier) ? penaltyMultiplier : penaltyMultiplier.toFixed(1)} times the deposit amount ($${penaltyAmount}) as provided by ${data.state} law;
 • Recovering court costs and attorney fees; and
 • Any additional relief the court deems appropriate.
 
@@ -155,7 +161,11 @@ export function generateFirmTemplate(data: LetterData): string {
     day: "numeric",
   })
 
-  return `${currentDate}
+  return `${data.forwardingAddress}
+
+Sent via Certified Mail, Return Receipt Requested
+
+${currentDate}
 
 ${data.landlordInfo}
 
@@ -165,7 +175,7 @@ Tenant: ${data.tenantName}
 
 Dear Landlord,
 
-This letter serves as a FINAL DEMAND for the immediate return of my security deposit in the amount of $${data.depositAmount}.
+This letter serves as a FINAL DEMAND for the immediate return of my security deposit in the amount of $${parseFloat(data.depositAmount).toFixed(2)}.
 
 VIOLATION OF STATE LAW:
 You are currently in violation of ${data.state} state law (${data.law.code}). The statutory deadline for returning security deposits expired ${daysInfo.daysCount} days ago on the date that was ${data.law.days} days after my move-out date of ${data.moveOutDate}.
@@ -178,12 +188,12 @@ Your failure to comply with state law subjects you to significant penalties, inc
 
 FINAL OPPORTUNITY:
 This is your final opportunity to resolve this matter without legal action. You have FIVE (5) BUSINESS DAYS from receipt of this letter to:
-1. Return the full deposit amount of $${data.depositAmount}, OR
+1. Return the full deposit amount of $${parseFloat(data.depositAmount).toFixed(2)}, OR
 2. Provide detailed written justification with supporting documentation for any deductions
 
 LEGAL ACTION WARNING:
 If you fail to respond appropriately within five business days, I will immediately file a lawsuit in small claims court seeking:
-- Return of the full deposit amount ($${data.depositAmount})
+- Return of the full deposit amount ($${parseFloat(data.depositAmount).toFixed(2)})
 - Treble damages ($${(parseFloat(data.depositAmount) * 3).toFixed(2)})
 - Court costs and attorney fees
 - Any other relief the court deems appropriate
@@ -206,7 +216,9 @@ export function generateFriendlyTemplate(data: LetterData): string {
     day: "numeric",
   })
 
-  return `${currentDate}
+  return `${data.forwardingAddress}
+
+${currentDate}
 
 ${data.landlordInfo}
 
@@ -219,13 +231,13 @@ Dear Landlord,
 I hope this letter finds you well. I am writing to request the return of my security deposit for the rental property listed above.
 
 RENTAL DETAILS:
-I was a tenant at ${data.rentalAddress} and paid a security deposit of $${data.depositAmount} on ${data.depositDate}. I moved out on ${data.moveOutDate} and left the property in good condition, with only normal wear and tear.
+I was a tenant at ${data.rentalAddress} and paid a security deposit of $${parseFloat(data.depositAmount).toFixed(2)} on ${data.depositDate}. I moved out on ${data.moveOutDate} and left the property in good condition, with only normal wear and tear.
 
 LEGAL REQUIREMENT:
 According to ${data.state} state law (${data.law.code}), security deposits must be returned within ${data.law.days} days of tenant move-out, unless there are legitimate deductions for damages beyond normal wear and tear.
 
 REQUEST:
-I would appreciate the return of my full security deposit of $${data.depositAmount}. If you believe any deductions are necessary, please provide me with a detailed written explanation and supporting documentation as required by law.
+I would appreciate the return of my full security deposit of $${parseFloat(data.depositAmount).toFixed(2)}. If you believe any deductions are necessary, please provide me with a detailed written explanation and supporting documentation as required by law.
 
 I trust we can resolve this matter amicably. Please feel free to contact me at ${data.tenantEmail} if you have any questions or need additional information.
 
