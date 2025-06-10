@@ -87,8 +87,8 @@ LEGAL DEMAND:
 Under ${data.state} state law, specifically ${data.law.code}, landlords are required to return security deposits within ${data.law.days} days of tenant move-out, unless there are legitimate deductions for damages beyond normal wear and tear or unpaid rent.
 
 ${daysInfo.isPastDue 
-  ? `The statutory deadline has passed ${daysInfo.daysCount} days ago. You are now in violation of state law.`
-  : `${daysInfo.description}.`
+  ? `As of this date, ${daysInfo.daysCount} days have passed since the statutory deadline, and I have not received my security deposit or any written explanation of deductions as required by law.`
+  : `As of this date, ${daysInfo.description}.`
 }
 
 DEMAND FOR PAYMENT:
@@ -112,9 +112,7 @@ Sincerely,
 
 
 ${data.tenantName}
-Email: ${data.tenantEmail}
-
-cc: File Copy`
+Email: ${data.tenantEmail}`
 }
 
 // 强硬语气模板（用于超期情况）

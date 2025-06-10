@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = `
-Draft a professional, formal demand letter for security deposit return under ${state} state law. Use proper business letter format with the following details:
+Draft a professional, formal demand letter for security deposit return under ${state} state law. Follow this exact structure and format:
 
 TENANT INFORMATION:
 - Name: ${tenantName}
@@ -93,17 +93,44 @@ LEGAL REQUIREMENTS:
 - Applicable law: ${law.code}
 - Statutory deadline: ${law.days} days
 
-LETTER REQUIREMENTS:
-1. Use formal business letter format with proper date, addresses, and salutation
-2. Reference the specific state statute (${law.code})
-3. Clearly state the ${law.days}-day deadline requirement
-4. Demand return of the full security deposit amount ($${depositAmount})
-5. Include tenant contact information (${tenantEmail})
-6. Maintain professional, firm but respectful tone
-7. Include a clear deadline for response (based on state law)
-8. End with proper closing and signature line
+REQUIRED LETTER FORMAT:
+1. Start with current date
+2. Landlord name and address
+3. RE: DEMAND FOR RETURN OF SECURITY DEPOSIT with property address and tenant name
+4. "Dear Landlord," salutation
+5. Opening paragraph: "I am writing to formally demand the immediate return of my security deposit in the amount of $${depositAmount} for the above-referenced rental property."
 
-Make the letter legally sound, professional, and appropriate for ${state} jurisdiction. The letter should be ready to print and mail.`
+6. FACTUAL BACKGROUND section stating:
+   - Date deposit was paid (${depositDate})
+   - Deposit amount ($${depositAmount})
+   - Property address (${rentalAddress})
+   - Move-out date (${moveOutDate})
+   - Condition of property upon move-out
+
+7. LEGAL DEMAND section referencing:
+   - State law (${state} state law)
+   - Specific statute (${law.code})
+   - Statutory deadline (${law.days} days)
+   - Current status regarding deadline
+
+8. DEMAND FOR PAYMENT section with:
+   - Clear demand for full deposit return
+   - List of legal remedies including:
+     * Filing lawsuit in small claims court
+     * Seeking damages up to three times the deposit amount
+     * Recovery of attorney fees and court costs
+     * Other relief deemed proper by the court
+
+9. DEADLINE FOR RESPONSE section with:
+   - 10-day deadline for response
+   - Payment instructions
+   - Documentation requirements if deductions claimed
+
+10. Closing paragraph about preferring amicable resolution but being prepared for legal action
+11. Contact information (${tenantEmail})
+12. "Sincerely," closing with tenant name and email
+
+Make the letter legally sound, professional, and appropriate for ${state} jurisdiction. Use formal business letter format without "cc: File Copy" line.`
 
     // Option 1: Use OpenAI API (uncomment and add your API key)
     if (process.env.OPENAI_API_KEY) {
@@ -265,7 +292,5 @@ Sincerely,
 
 
 ${tenantName}
-Email: ${tenantEmail}
-
-cc: File Copy`
+Email: ${tenantEmail}`
 }
