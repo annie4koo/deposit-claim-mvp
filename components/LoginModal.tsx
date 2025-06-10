@@ -22,12 +22,12 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     setError('')
 
     if (!email || !password) {
-      setError('请填写所有字段')
+      setError('Please fill in all fields')
       return
     }
 
     if (password.length < 6) {
-      setError('密码至少需要6个字符')
+      setError('Password must be at least 6 characters')
       return
     }
 
@@ -37,7 +37,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       setPassword('')
       onClose()
     } else {
-      setError('登录失败，请检查您的邮箱和密码')
+      setError('Login failed. Please check your email and password')
     }
   }
 
@@ -45,18 +45,18 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* 背景遮罩 */}
+      {/* Background overlay */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50" 
         onClick={onClose}
       />
       
-      {/* 模态框内容 */}
+      {/* Modal content */}
       <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="p-6">
-          {/* 头部 */}
+          {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">登录账户</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Log in to your account</h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
@@ -65,11 +65,11 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </button>
           </div>
 
-          {/* 登录表单 */}
+          {/* Login form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="email" className="text-gray-700">
-                邮箱地址
+                Email address
               </Label>
               <Input
                 id="email"
@@ -84,14 +84,14 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
             <div>
               <Label htmlFor="password" className="text-gray-700">
-                密码
+                Password
               </Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="至少6个字符"
+                placeholder="At least 6 characters"
                 className="mt-1"
                 disabled={isLoading}
               />
@@ -108,26 +108,26 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
               className="w-full bg-teal-600 hover:bg-teal-700"
               disabled={isLoading}
             >
-              {isLoading ? '登录中...' : '登录'}
+              {isLoading ? 'Logging in...' : 'Log in'}
             </Button>
           </form>
 
-          {/* 演示信息 */}
+          {/* Demo info */}
           <div className="mt-4 p-3 bg-blue-50 rounded-md">
             <p className="text-sm text-blue-800">
-              <strong>演示登录：</strong>
+              <strong>Demo Login:</strong>
             </p>
             <p className="text-xs text-blue-600 mt-1">
-              使用任意邮箱格式 + 至少6位密码即可登录
+              Use any email format + password with 6+ characters to log in
             </p>
           </div>
 
-          {/* 注册链接 */}
+          {/* Register link */}
           <div className="mt-4 text-center">
             <p className="text-sm text-gray-600">
-              还没有账户？
+              Don't have an account?
               <button className="text-teal-600 hover:text-teal-700 font-medium ml-1">
-                立即注册
+                Sign up
               </button>
             </p>
           </div>

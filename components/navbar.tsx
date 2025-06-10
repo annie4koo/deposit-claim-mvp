@@ -57,7 +57,7 @@ export function Navbar() {
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
               {isLoading ? (
-                <div className="text-gray-500 px-3 py-2 text-sm">加载中...</div>
+                <div className="text-gray-500 px-3 py-2 text-sm">Loading...</div>
               ) : user ? (
                 // 已登录状态
                 <div className="relative">
@@ -86,27 +86,27 @@ export function Navbar() {
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowUserMenu(false)}
                       >
-                        个人资料
+                        Profile
                       </Link>
                       <Link
                         href="/my-letters"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowUserMenu(false)}
                       >
-                        我的信函
+                        My Letters
                       </Link>
                       <Link
                         href="/settings"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                         onClick={() => setShowUserMenu(false)}
                       >
-                        设置
+                        Settings
                       </Link>
                       <button
                         onClick={handleLogout}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
-                        退出登录
+                        Log out
                       </button>
                     </div>
                   )}
@@ -117,11 +117,11 @@ export function Navbar() {
                   onClick={() => setShowLoginModal(true)}
                   className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
                 >
-                  登录
+                  Log in
                 </button>
               )}
               <Link href="/">
-                <Button className="bg-teal-600 hover:bg-teal-700">开始使用</Button>
+                <Button className="bg-teal-600 hover:bg-teal-700">Get Started</Button>
               </Link>
             </div>
             <div className="flex items-center sm:hidden">
@@ -129,7 +129,7 @@ export function Navbar() {
                 href="/" 
                 className="mr-3 px-3 py-2 text-sm font-medium text-white bg-teal-600 rounded-md hover:bg-teal-700"
               >
-                开始使用
+                Get Started
               </Link>
               <button className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500">
                 <span className="sr-only">Open main menu</span>
