@@ -144,7 +144,9 @@ Sincerely,
 
 
 
-${data.tenantName}`
+${data.tenantName}
+
+Sent via Certified Mail No. _____ (Return Receipt Requested)`
 }
 
 // 强硬语气模板（用于超期情况）
@@ -160,6 +162,15 @@ export function generateFirmTemplate(data: LetterData): string {
     month: "long",
     day: "numeric",
   })
+
+  // 确保使用正确的日期类型描述
+  const daysType = data.law.daysType === 'business' ? 'business days' : 'calendar days'
+  const dayLabel = typeof data.law.days === 'number' && data.law.days === 1 ? 
+    (data.law.daysType === 'business' ? 'business day' : 'calendar day') : daysType
+
+  // 使用正确的罚倍数
+  const penaltyMultiplier = data.law.penaltyMultiplier || 3
+  const penaltyAmount = (parseFloat(data.depositAmount) * penaltyMultiplier).toFixed(2)
 
   return `${data.forwardingAddress}
 
@@ -178,11 +189,11 @@ Dear Landlord,
 This letter serves as a FINAL DEMAND for the immediate return of my security deposit in the amount of $${parseFloat(data.depositAmount).toFixed(2)}.
 
 VIOLATION OF STATE LAW:
-You are currently in violation of ${data.state} state law (${data.law.code}). The statutory deadline for returning security deposits expired ${daysInfo.daysCount} days ago on the date that was ${data.law.days} days after my move-out date of ${data.moveOutDate}.
+You are currently in violation of ${data.state} state law (${data.law.code}). The statutory deadline for returning security deposits expired ${daysInfo.daysCount} days ago on the date that was ${data.law.days} ${dayLabel} after my move-out date of ${data.moveOutDate}.
 
 LEGAL CONSEQUENCES:
 Your failure to comply with state law subjects you to significant penalties, including:
-- Liability for damages up to THREE TIMES the deposit amount ($${(parseFloat(data.depositAmount) * 3).toFixed(2)})
+- Liability for damages up to ${penaltyMultiplier === Math.floor(penaltyMultiplier) ? penaltyMultiplier : penaltyMultiplier.toFixed(1)} times the deposit amount ($${penaltyAmount}) as provided by ${data.state} law
 - Responsibility for my attorney fees and court costs
 - Potential additional damages as determined by the court
 
@@ -194,7 +205,7 @@ This is your final opportunity to resolve this matter without legal action. You 
 LEGAL ACTION WARNING:
 If you fail to respond appropriately within five business days, I will immediately file a lawsuit in small claims court seeking:
 - Return of the full deposit amount ($${parseFloat(data.depositAmount).toFixed(2)})
-- Treble damages ($${(parseFloat(data.depositAmount) * 3).toFixed(2)})
+- Damages up to ${penaltyMultiplier === Math.floor(penaltyMultiplier) ? penaltyMultiplier : penaltyMultiplier.toFixed(1)} times the deposit amount ($${penaltyAmount})
 - Court costs and attorney fees
 - Any other relief the court deems appropriate
 
@@ -204,6 +215,8 @@ Sincerely,
 
 ${data.tenantName}
 Email: ${data.tenantEmail}
+
+Sent via Certified Mail No. _____ (Return Receipt Requested)
 
 cc: File Copy - Legal Action Pending`
 }
@@ -215,6 +228,11 @@ export function generateFriendlyTemplate(data: LetterData): string {
     month: "long",
     day: "numeric",
   })
+
+  // 确保使用正确的日期类型描述
+  const daysType = data.law.daysType === 'business' ? 'business days' : 'calendar days'
+  const dayLabel = typeof data.law.days === 'number' && data.law.days === 1 ? 
+    (data.law.daysType === 'business' ? 'business day' : 'calendar day') : daysType
 
   return `${data.forwardingAddress}
 
@@ -234,7 +252,7 @@ RENTAL DETAILS:
 I was a tenant at ${data.rentalAddress} and paid a security deposit of $${parseFloat(data.depositAmount).toFixed(2)} on ${data.depositDate}. I moved out on ${data.moveOutDate} and left the property in good condition, with only normal wear and tear.
 
 LEGAL REQUIREMENT:
-According to ${data.state} state law (${data.law.code}), security deposits must be returned within ${data.law.days} days of tenant move-out, unless there are legitimate deductions for damages beyond normal wear and tear.
+According to ${data.state} state law (${data.law.code}), security deposits must be returned within ${data.law.days} ${dayLabel} of tenant move-out, unless there are legitimate deductions for damages beyond normal wear and tear.
 
 REQUEST:
 I would appreciate the return of my full security deposit of $${parseFloat(data.depositAmount).toFixed(2)}. If you believe any deductions are necessary, please provide me with a detailed written explanation and supporting documentation as required by law.
@@ -246,7 +264,9 @@ Thank you for your prompt attention to this matter.
 Best regards,
 
 ${data.tenantName}
-Email: ${data.tenantEmail}`
+Email: ${data.tenantEmail}
+
+Sent via Certified Mail No. _____ (Return Receipt Requested)`
 }
 
 // 根据情况选择合适的模板
