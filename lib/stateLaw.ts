@@ -97,3 +97,32 @@ export const stateLaw = {
 } as const
 
 export type StateCode = keyof typeof stateLaw
+
+// Function to calculate business days
+export function calculateBusinessDays(startDate: Date, days: number): Date {
+  let currentDate = new Date(startDate)
+  let remainingDays = days
+
+  while (remainingDays > 0) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    // Skip weekends (0=Sunday, 6=Saturday)
+    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+      remainingDays--
+    }
+  }
+
+  return currentDate
+}
+
+// Get statutory days for a state
+export function getStatutoryDays(state: string): number {
+  const law = stateLaw[state as StateCode]
+  return law ? law.days : 14 // Default to 14 days if state not found
+}
+
+// Calculate statutory deadline
+export function calculateDeadline(moveOutDate: string, state: string): Date {
+  const baseDate = new Date(moveOutDate)
+  const days = getStatutoryDays(state)
+  return calculateBusinessDays(baseDate, days)
+}

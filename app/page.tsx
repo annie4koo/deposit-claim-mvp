@@ -108,6 +108,10 @@ export default function DepositClaimPage() {
   const [apiError, setApiError] = useState<string>("")
   const [copySuccess, setCopySuccess] = useState(false)
   const [showSignInPrompt, setShowSignInPrompt] = useState(false)
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailSuccess, setEmailSuccess] = useState(false)
+  const [emailError, setEmailError] = useState("")
+  const [showReminderDialog, setShowReminderDialog] = useState(false)
 
   // Enhanced event tracking function (ready for GA/PostHog integration)
   const trackEvent = (eventName: string, properties?: Record<string, any>) => {
@@ -723,6 +727,68 @@ export default function DepositClaimPage() {
     }
   }
 
+  // Email sending function
+  const sendEmail = async () => {
+    if (!formData.landlordInfo.includes('@')) {
+      setEmailError("Landlord email address is required for email sending")
+      return
+    }
+
+    setEmailSending(true)
+    setEmailError("")
+
+    try {
+      const response = await fetch("/api/email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: formData.landlordInfo.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0] || formData.landlordInfo,
+          subject: `Security Deposit Return Request - ${formData.tenantName}`,
+          letterContent: generatedLetter,
+          tenantName: formData.tenantName
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to send email")
+      }
+
+      const result = await response.json()
+      setEmailSuccess(true)
+      setShowReminderDialog(true)
+      
+      // Setup reminders
+      await fetch("/api/setup-reminders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tenantName: formData.tenantName,
+          tenantEmail: formData.tenantEmail,
+          landlordEmail: formData.landlordInfo.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0],
+          amount: formData.depositAmount,
+          state: formData.state,
+          moveOutDate: formData.moveOutDate
+        }),
+      })
+
+      trackEvent('email_sent', {
+        state: formData.state,
+        deposit_amount: formData.depositAmount
+      })
+    } catch (error) {
+      setEmailError("Failed to send email. Please try again or copy the letter manually.")
+      trackEvent('email_send_failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+    } finally {
+      setEmailSending(false)
+    }
+  }
+
   // Download as text file
   const downloadLetter = () => {
     const element = document.createElement("a")
@@ -1196,6 +1262,35 @@ export default function DepositClaimPage() {
                         }}
                       />
 
+                      {/* Email Sending Section */}
+                      {formData.landlordInfo.includes('@') && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <h4 className="text-blue-800 font-semibold mb-2 flex items-center gap-2">
+                            📧 Send Email to Landlord
+                          </h4>
+                          <p className="text-blue-700 text-sm mb-3">
+                            Send this letter directly to your landlord's email address.
+                          </p>
+                          {emailError && (
+                            <div className="bg-red-100 border border-red-300 rounded p-2 mb-3">
+                              <p className="text-red-700 text-sm">{emailError}</p>
+                            </div>
+                          )}
+                          {emailSuccess && (
+                            <div className="bg-green-100 border border-green-300 rounded p-2 mb-3">
+                              <p className="text-green-700 text-sm">✅ Email sent successfully!</p>
+                            </div>
+                          )}
+                          <Button
+                            onClick={sendEmail}
+                            disabled={emailSending || emailSuccess}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            {emailSending ? "Sending..." : emailSuccess ? "Email Sent" : "Send Email"}
+                          </Button>
+                        </div>
+                      )}
+
                       <div className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
                         {/* Header bar with gradient */}
                         <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-4 py-3">
@@ -1265,6 +1360,69 @@ export default function DepositClaimPage() {
       </footer>
 
       {showSignInPrompt && <SignInPromptModal />}
+      
+      {/* Reminder Dialog */}
+      {showReminderDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-black bg-opacity-50" 
+            onClick={() => setShowReminderDialog(false)}
+          />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">📧 Email Sent Successfully!</h2>
+                <button
+                  onClick={() => setShowReminderDialog(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <div className="bg-green-100 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 text-green-800 mb-2">
+                    <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-semibold">Letter Delivered</span>
+                  </div>
+                  <p className="text-green-700 text-sm">
+                    Your demand letter has been sent to your landlord's email address.
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h3 className="text-blue-800 font-semibold mb-2">🔔 Automatic Reminders Enabled</h3>
+                  <p className="text-blue-700 text-sm mb-3">
+                    We've set up automatic reminders for your deposit claim:
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <span className="font-mono bg-blue-100 px-2 py-0.5 rounded">T-3</span>
+                      <span>Reminder 3 days before deadline</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <span className="font-mono bg-blue-100 px-2 py-0.5 rounded">T+2</span>
+                      <span>Follow-up 2 days after deadline</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowReminderDialog(false)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Got it!
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
