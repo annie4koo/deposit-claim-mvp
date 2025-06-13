@@ -171,6 +171,26 @@ export default function DepositClaimPage() {
     setMetaTag('language', 'en-US')
     setMetaTag('locale', 'en-US')
     
+    // Force browser locale settings globally
+    if (typeof window !== 'undefined') {
+      // Override navigator.language for the entire page
+      Object.defineProperty(navigator, 'language', {
+        get: () => 'en-US',
+        configurable: true
+      })
+      
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+        configurable: true
+      })
+      
+      // Force locale for Intl objects
+      const originalDateTimeFormat = Intl.DateTimeFormat
+      Intl.DateTimeFormat = function(locales: any, options: any) {
+        return new originalDateTimeFormat('en-US', options)
+      } as any
+    }
+    
     // Force date inputs to use English locale and disable manual input
     const configureDateInputs = () => {
       const dateInputs = document.querySelectorAll('input[type="date"]')
@@ -220,6 +240,22 @@ export default function DepositClaimPage() {
           setTimeout(() => {
             newInput.setAttribute('readonly', 'readonly')
           }, 100)
+        })
+        
+        // Add change handler to trigger form update
+        newInput.addEventListener('change', (e) => {
+          const target = e.target as HTMLInputElement
+          if (target.value) {
+            const [year, month, day] = target.value.split('-')
+            const formattedDate = `${month}/${day}/${year}`
+            
+            // Trigger the form update based on input ID
+            if (target.id === 'depositDate') {
+              setFormData((prev) => ({ ...prev, depositDate: formattedDate }))
+            } else if (target.id === 'moveOutDate') {
+              setFormData((prev) => ({ ...prev, moveOutDate: formattedDate }))
+            }
+          }
         })
         
         // Completely block all keyboard input except navigation
@@ -365,22 +401,13 @@ export default function DepositClaimPage() {
         -webkit-locale: "en-US" !important;
         locale: en-US !important;
       }
+      
+      /* Force date picker dialog to use English */
+      input[type="date"]::-webkit-calendar-picker-indicator:before {
+        content: "" !important;
+      }
     `
     document.head.appendChild(style)
-    
-    // Force browser locale settings
-    if (typeof window !== 'undefined') {
-      // Override navigator.language temporarily for date inputs
-      Object.defineProperty(navigator, 'language', {
-        get: () => 'en-US',
-        configurable: true
-      })
-      
-      Object.defineProperty(navigator, 'languages', {
-        get: () => ['en-US', 'en'],
-        configurable: true
-      })
-    }
     
     // Cleanup function
     return () => {
@@ -390,7 +417,7 @@ export default function DepositClaimPage() {
         document.head.removeChild(styleElement)
       }
     }
-  }, [])
+  }, [setFormData])
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
