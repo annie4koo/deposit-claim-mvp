@@ -148,23 +148,116 @@ export default function DepositClaimPage() {
   }
 
   useEffect(() => {
-    // Ensure date inputs use English locale and are properly configured
-    const dateInputs = document.querySelectorAll('input[type="date"]')
-    dateInputs.forEach((input) => {
-      const htmlInput = input as HTMLInputElement
-      htmlInput.setAttribute('lang', 'en-US')
-      
-      // Force English locale for date formatting
-      htmlInput.setAttribute('data-locale', 'en-US')
-      
-      // Force webkit browsers to use English
-      if ('webkitAppearance' in htmlInput.style) {
+    // Force English locale for the entire document
+    document.documentElement.lang = 'en-US'
+    document.documentElement.setAttribute('data-locale', 'en-US')
+    
+    // Set meta tag for locale
+    let metaLocale = document.querySelector('meta[http-equiv="Content-Language"]')
+    if (!metaLocale) {
+      metaLocale = document.createElement('meta')
+      metaLocale.setAttribute('http-equiv', 'Content-Language')
+      document.head.appendChild(metaLocale)
+    }
+    metaLocale.setAttribute('content', 'en-US')
+    
+    // Force date inputs to use English locale
+    const configureDateInputs = () => {
+      const dateInputs = document.querySelectorAll('input[type="date"]')
+      dateInputs.forEach((input) => {
+        const htmlInput = input as HTMLInputElement
+        
+        // Set multiple locale attributes
+        htmlInput.setAttribute('lang', 'en-US')
+        htmlInput.setAttribute('data-locale', 'en-US')
+        htmlInput.setAttribute('data-date-format', 'MM/DD/YYYY')
+        
+        // Force webkit browsers to use English
         htmlInput.style.setProperty('-webkit-locale', '"en-US"')
-      }
+        htmlInput.style.setProperty('locale', 'en-US')
+        
+        // Disable manual input - only allow date picker
+        htmlInput.setAttribute('readonly', 'true')
+        htmlInput.style.cursor = 'pointer'
+        
+        // Remove readonly on focus to allow date picker, restore on blur
+        htmlInput.addEventListener('focus', () => {
+          htmlInput.removeAttribute('readonly')
+        })
+        
+        htmlInput.addEventListener('blur', () => {
+          htmlInput.setAttribute('readonly', 'true')
+        })
+        
+        // Prevent manual typing
+        htmlInput.addEventListener('keydown', (e) => {
+          // Allow tab, escape, enter for navigation
+          if (['Tab', 'Escape', 'Enter'].includes(e.key)) {
+            return
+          }
+          // Block all other keys to prevent manual input
+          e.preventDefault()
+        })
+      })
+    }
+    
+    // Configure immediately and after DOM changes
+    configureDateInputs()
+    
+    // Use MutationObserver to handle dynamically added date inputs
+    const observer = new MutationObserver(() => {
+      configureDateInputs()
     })
     
-    // Set document language to English
-    document.documentElement.lang = 'en-US'
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    })
+    
+    // Add CSS to force English date format display
+    const style = document.createElement('style')
+    style.textContent = `
+      input[type="date"] {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        -webkit-locale: "en-US" !important;
+        locale: en-US !important;
+      }
+      
+      input[type="date"]::-webkit-datetime-edit {
+        -webkit-locale: "en-US" !important;
+      }
+      
+      input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+        -webkit-locale: "en-US" !important;
+      }
+      
+      input[type="date"]::-webkit-datetime-edit-text {
+        -webkit-locale: "en-US" !important;
+      }
+      
+      input[type="date"]::-webkit-datetime-edit-month-field {
+        -webkit-locale: "en-US" !important;
+      }
+      
+      input[type="date"]::-webkit-datetime-edit-day-field {
+        -webkit-locale: "en-US" !important;
+      }
+      
+      input[type="date"]::-webkit-datetime-edit-year-field {
+        -webkit-locale: "en-US" !important;
+      }
+      
+      input[type="date"]::-webkit-calendar-picker-indicator {
+        -webkit-locale: "en-US" !important;
+      }
+    `
+    document.head.appendChild(style)
+    
+    // Cleanup function
+    return () => {
+      observer.disconnect()
+      document.head.removeChild(style)
+    }
   }, [])
 
   const validateForm = (): boolean => {
