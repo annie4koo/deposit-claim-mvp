@@ -148,83 +148,174 @@ export default function DepositClaimPage() {
   }
 
   useEffect(() => {
-    // Force English locale for the entire document
+    // Force English locale for the entire document and all date inputs
     document.documentElement.lang = 'en-US'
     document.documentElement.setAttribute('data-locale', 'en-US')
     
-    // Set meta tag for locale
-    let metaLocale = document.querySelector('meta[http-equiv="Content-Language"]')
-    if (!metaLocale) {
-      metaLocale = document.createElement('meta')
-      metaLocale.setAttribute('http-equiv', 'Content-Language')
-      document.head.appendChild(metaLocale)
+    // Set multiple meta tags for locale forcing
+    const setMetaTag = (name: string, content: string) => {
+      let meta = document.querySelector(`meta[name="${name}"]`) || document.querySelector(`meta[http-equiv="${name}"]`)
+      if (!meta) {
+        meta = document.createElement('meta')
+        if (name.includes('-')) {
+          meta.setAttribute('http-equiv', name)
+        } else {
+          meta.setAttribute('name', name)
+        }
+        document.head.appendChild(meta)
+      }
+      meta.setAttribute('content', content)
     }
-    metaLocale.setAttribute('content', 'en-US')
     
-    // Force date inputs to use English locale
+    setMetaTag('Content-Language', 'en-US')
+    setMetaTag('language', 'en-US')
+    setMetaTag('locale', 'en-US')
+    
+    // Force date inputs to use English locale and disable manual input
     const configureDateInputs = () => {
       const dateInputs = document.querySelectorAll('input[type="date"]')
       dateInputs.forEach((input) => {
         const htmlInput = input as HTMLInputElement
         
-        // Set multiple locale attributes
+        // Set comprehensive locale attributes
         htmlInput.setAttribute('lang', 'en-US')
         htmlInput.setAttribute('data-locale', 'en-US')
         htmlInput.setAttribute('data-date-format', 'MM/DD/YYYY')
+        htmlInput.setAttribute('data-lang', 'en-US')
         
         // Force webkit browsers to use English
-        htmlInput.style.setProperty('-webkit-locale', '"en-US"')
-        htmlInput.style.setProperty('locale', 'en-US')
+        htmlInput.style.setProperty('-webkit-locale', '"en-US"', 'important')
+        htmlInput.style.setProperty('locale', 'en-US', 'important')
+        htmlInput.style.setProperty('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', 'important')
         
-        // Disable manual input - only allow date picker
-        htmlInput.setAttribute('readonly', 'true')
+        // Completely disable manual input - make it readonly always
+        htmlInput.setAttribute('readonly', 'readonly')
         htmlInput.style.cursor = 'pointer'
+        htmlInput.style.caretColor = 'transparent'
         
-        // Remove readonly on focus to allow date picker, restore on blur
-        htmlInput.addEventListener('focus', () => {
-          htmlInput.removeAttribute('readonly')
+        // Remove any existing event listeners and add new ones
+        const newInput = htmlInput.cloneNode(true) as HTMLInputElement
+        htmlInput.parentNode?.replaceChild(newInput, htmlInput)
+        
+        // Add click handler to temporarily remove readonly for date picker
+        newInput.addEventListener('click', (e) => {
+          e.preventDefault()
+          newInput.removeAttribute('readonly')
+          newInput.showPicker?.()
+          setTimeout(() => {
+            newInput.setAttribute('readonly', 'readonly')
+          }, 100)
         })
         
-        htmlInput.addEventListener('blur', () => {
-          htmlInput.setAttribute('readonly', 'true')
+        // Add focus handler
+        newInput.addEventListener('focus', (e) => {
+          newInput.removeAttribute('readonly')
+          setTimeout(() => {
+            newInput.showPicker?.()
+          }, 10)
         })
         
-        // Prevent manual typing
-        htmlInput.addEventListener('keydown', (e) => {
-          // Allow tab, escape, enter for navigation
+        // Add blur handler to restore readonly
+        newInput.addEventListener('blur', () => {
+          setTimeout(() => {
+            newInput.setAttribute('readonly', 'readonly')
+          }, 100)
+        })
+        
+        // Completely block all keyboard input except navigation
+        newInput.addEventListener('keydown', (e) => {
+          // Allow only tab, escape, enter for navigation
           if (['Tab', 'Escape', 'Enter'].includes(e.key)) {
             return
           }
-          // Block all other keys to prevent manual input
+          // Block everything else
           e.preventDefault()
+          e.stopPropagation()
+          return false
+        })
+        
+        // Block keypress and keyup as well
+        newInput.addEventListener('keypress', (e) => {
+          if (!['Tab', 'Escape', 'Enter'].includes(e.key)) {
+            e.preventDefault()
+            e.stopPropagation()
+            return false
+          }
+        })
+        
+        newInput.addEventListener('keyup', (e) => {
+          if (!['Tab', 'Escape', 'Enter'].includes(e.key)) {
+            e.preventDefault()
+            e.stopPropagation()
+            return false
+          }
+        })
+        
+        // Block input event for extra safety
+        newInput.addEventListener('input', (e) => {
+          // Only allow programmatic changes (from date picker)
+          if (!e.isTrusted) return
+          
+          // If it's a manual input attempt, prevent it
+          const target = e.target as HTMLInputElement
+          if (target.readOnly) {
+            e.preventDefault()
+            e.stopPropagation()
+            return false
+          }
         })
       })
     }
     
-    // Configure immediately and after DOM changes
+    // Configure immediately
     configureDateInputs()
     
     // Use MutationObserver to handle dynamically added date inputs
-    const observer = new MutationObserver(() => {
-      configureDateInputs()
+    const observer = new MutationObserver((mutations) => {
+      let shouldReconfigure = false
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element
+              if (element.tagName === 'INPUT' && element.getAttribute('type') === 'date') {
+                shouldReconfigure = true
+              } else if (element.querySelector && element.querySelector('input[type="date"]')) {
+                shouldReconfigure = true
+              }
+            }
+          })
+        }
+      })
+      if (shouldReconfigure) {
+        setTimeout(configureDateInputs, 10)
+      }
     })
     
     observer.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['type']
     })
     
-    // Add CSS to force English date format display
+    // Add comprehensive CSS to force English date format display
     const style = document.createElement('style')
+    style.id = 'date-input-english-force'
     style.textContent = `
+      /* Force English locale on all date inputs */
       input[type="date"] {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
         -webkit-locale: "en-US" !important;
         locale: en-US !important;
+        caret-color: transparent !important;
+        cursor: pointer !important;
       }
       
+      /* Force English on all webkit date picker pseudo-elements */
       input[type="date"]::-webkit-datetime-edit {
         -webkit-locale: "en-US" !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
       }
       
       input[type="date"]::-webkit-datetime-edit-fields-wrapper {
@@ -233,6 +324,7 @@ export default function DepositClaimPage() {
       
       input[type="date"]::-webkit-datetime-edit-text {
         -webkit-locale: "en-US" !important;
+        color: #6b7280 !important;
       }
       
       input[type="date"]::-webkit-datetime-edit-month-field {
@@ -249,14 +341,54 @@ export default function DepositClaimPage() {
       
       input[type="date"]::-webkit-calendar-picker-indicator {
         -webkit-locale: "en-US" !important;
+        cursor: pointer !important;
+      }
+      
+      /* Hide any Chinese characters that might appear */
+      input[type="date"]::-webkit-datetime-edit-text:contains("年"),
+      input[type="date"]::-webkit-datetime-edit-text:contains("月"),
+      input[type="date"]::-webkit-datetime-edit-text:contains("日") {
+        display: none !important;
+      }
+      
+      /* Force readonly appearance */
+      input[type="date"][readonly] {
+        background-color: white !important;
+        cursor: pointer !important;
+        caret-color: transparent !important;
+      }
+      
+      /* Additional webkit locale forcing */
+      input[type="date"]:lang(zh),
+      input[type="date"]:lang(zh-CN),
+      input[type="date"]:lang(zh-TW) {
+        -webkit-locale: "en-US" !important;
+        locale: en-US !important;
       }
     `
     document.head.appendChild(style)
     
+    // Force browser locale settings
+    if (typeof window !== 'undefined') {
+      // Override navigator.language temporarily for date inputs
+      Object.defineProperty(navigator, 'language', {
+        get: () => 'en-US',
+        configurable: true
+      })
+      
+      Object.defineProperty(navigator, 'languages', {
+        get: () => ['en-US', 'en'],
+        configurable: true
+      })
+    }
+    
     // Cleanup function
     return () => {
       observer.disconnect()
-      document.head.removeChild(style)
+      const styleElement = document.getElementById('date-input-english-force')
+      if (styleElement) {
+        document.head.removeChild(styleElement)
+      }
     }
   }, [])
 
