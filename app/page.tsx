@@ -148,78 +148,23 @@ export default function DepositClaimPage() {
   }
 
   useEffect(() => {
-    // Ensure date inputs use English locale
+    // Ensure date inputs use English locale and are properly configured
     const dateInputs = document.querySelectorAll('input[type="date"]')
     dateInputs.forEach((input) => {
       const htmlInput = input as HTMLInputElement
       htmlInput.setAttribute('lang', 'en-US')
-      // Force browser to use en-US locale for date formatting
-      htmlInput.style.fontFeatureSettings = '"tnum"'
       
-      // Try to force English locale through various methods
+      // Force English locale for date formatting
       htmlInput.setAttribute('data-locale', 'en-US')
-      htmlInput.setAttribute('data-date-format', 'MM/DD/YYYY')
       
       // Force webkit browsers to use English
       if ('webkitAppearance' in htmlInput.style) {
         htmlInput.style.setProperty('-webkit-locale', '"en-US"')
       }
-      
-      // Add a custom placeholder effect
-      if (!htmlInput.value) {
-        htmlInput.style.color = '#9ca3af'
-        const placeholder = document.createElement('div')
-        placeholder.textContent = 'MM/DD/YYYY'
-        placeholder.style.cssText = `
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #9ca3af;
-          pointer-events: none;
-          font-size: 14px;
-          z-index: 1;
-        `
-        htmlInput.parentElement?.style.setProperty('position', 'relative')
-        htmlInput.parentElement?.appendChild(placeholder)
-        
-        // Hide placeholder when input has value or is focused
-        const handleInputChange = () => {
-          if (htmlInput.value || htmlInput === document.activeElement) {
-            placeholder.style.display = 'none'
-            htmlInput.style.color = '#374151'
-          } else {
-            placeholder.style.display = 'block'
-            htmlInput.style.color = '#9ca3af'
-          }
-        }
-        
-        htmlInput.addEventListener('input', handleInputChange)
-        htmlInput.addEventListener('focus', handleInputChange)
-        htmlInput.addEventListener('blur', handleInputChange)
-      }
     })
     
-    // Also try to set document language explicitly
+    // Set document language to English
     document.documentElement.lang = 'en-US'
-    
-    // Force reload of stylesheets to clear any cached locale styles
-    const links = document.querySelectorAll('link[rel="stylesheet"]')
-    links.forEach((link) => {
-      const href = (link as HTMLLinkElement).href
-      if (href.includes('/_next/static/css/')) {
-        const newLink = document.createElement('link')
-        newLink.rel = 'stylesheet'
-        newLink.href = href + '?v=' + Date.now()
-        document.head.appendChild(newLink)
-        // Remove old link after new one loads
-        newLink.onload = () => {
-          if (link.parentNode) {
-            link.parentNode.removeChild(link)
-          }
-        }
-      }
-    })
   }, [])
 
   const validateForm = (): boolean => {
@@ -681,6 +626,7 @@ export default function DepositClaimPage() {
                       <input
                         id="depositDate"
                         type="date"
+                        placeholder="MM/DD/YYYY"
                         value={formData.depositDate ? formData.depositDate.split('/').reverse().join('-') : ''}
                         onChange={(e) => {
                           if (e.target.value) {
@@ -702,6 +648,7 @@ export default function DepositClaimPage() {
                       <input
                         id="moveOutDate"
                         type="date"
+                        placeholder="MM/DD/YYYY"
                         value={formData.moveOutDate ? formData.moveOutDate.split('/').reverse().join('-') : ''}
                         onChange={(e) => {
                           if (e.target.value) {
