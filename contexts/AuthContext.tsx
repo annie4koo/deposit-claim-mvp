@@ -27,15 +27,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Check localStorage for current user session
-    const savedUser = localStorage.getItem('currentUser')
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser)
-        setUser(userData)
-      } catch (error) {
-        console.error('Error parsing saved user:', error)
-        localStorage.removeItem('currentUser')
+    // 确保只在客户端执行
+    if (typeof window !== 'undefined') {
+      // Check localStorage for current user session
+      const savedUser = localStorage.getItem('currentUser')
+      if (savedUser) {
+        try {
+          const userData = JSON.parse(savedUser)
+          setUser(userData)
+        } catch (error) {
+          console.error('Error parsing saved user:', error)
+          localStorage.removeItem('currentUser')
+        }
       }
     }
     setIsLoading(false)
@@ -43,6 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
+    
+    // 检查是否在客户端
+    if (typeof window === 'undefined') {
+      setIsLoading(false)
+      return { success: false, error: 'Feature not available during server rendering' }
+    }
     
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -82,6 +91,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
     
+    // 检查是否在客户端
+    if (typeof window === 'undefined') {
+      setIsLoading(false)
+      return { success: false, error: 'Feature not available during server rendering' }
+    }
+    
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000))
     
@@ -116,7 +131,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null)
-    localStorage.removeItem('currentUser')
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('currentUser')
+    }
   }
 
   return (
